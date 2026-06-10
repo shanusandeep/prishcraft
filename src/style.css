@@ -22,7 +22,8 @@ html, body {
 
 /* ---------- HUD ---------- */
 
-#hud { position: fixed; inset: 0; pointer-events: none; }
+/* the HUD must sit above the touch look-zone so its buttons stay tappable */
+#hud { position: fixed; inset: 0; pointer-events: none; z-index: 2; }
 
 #crosshair {
   position: absolute; left: 50%; top: 50%;
@@ -235,7 +236,7 @@ html, body {
 
 /* ---------- Touch controls ---------- */
 
-#touch-ui { position: fixed; inset: 0; pointer-events: none; }
+#touch-ui { position: fixed; inset: 0; pointer-events: none; z-index: 1; }
 #look-zone { position: absolute; inset: 0; pointer-events: auto; }
 
 #joystick {
