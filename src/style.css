@@ -280,6 +280,7 @@ html, body {
   background: rgba(255, 233, 243, 0.25);
   backdrop-filter: blur(2px);
   -webkit-backdrop-filter: blur(2px);
+  z-index: 6; /* modal: above the HUD and the touch look-zone */
 }
 #help.hidden { display: none; }
 
