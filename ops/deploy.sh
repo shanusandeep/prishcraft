@@ -52,6 +52,18 @@ EOF
   else
     echo "   Caddyfile already has the SpellCraft block."
   fi
+  if ! grep -q "prishcraft.shanuva.com" /srv/dailydose/Caddyfile; then
+    cat >> /srv/dailydose/Caddyfile <<'"'"'EOF'"'"'
+
+# --- PrishCraft on its own domain with auto-HTTPS ---
+prishcraft.shanuva.com {
+	encode gzip
+	root * /srv/spellcraft
+	file_server
+}
+EOF
+    echo "   Domain block added."
+  fi
 '
 
 echo "==> Adding docker-compose.override.yml (if not already there)"
@@ -87,7 +99,7 @@ echo "   SpellCraft  http://157.173.198.113:8090/  -> $SPELL (want 200)"
 echo "   DailyDose   http://157.173.198.113/       -> $DOSE (want 401/200, unchanged)"
 
 if [ "$SPELL" = "200" ]; then
-  echo "✨ Deployed! Bookmark http://157.173.198.113:8090/ on the kids' devices."
+  echo "✨ Deployed! Play at https://prishcraft.shanuva.com/"
 else
   echo "⚠️  SpellCraft did not come up — check 'docker compose logs caddy' on the server."
   exit 1
