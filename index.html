@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <link rel="icon" href="data:," />
+  <title>✨ SpellCraft</title>
+</head>
+<body>
+  <div id="app"></div>
+
+  <div id="hud">
+    <div id="crosshair"></div>
+    <div id="quest"></div>
+    <div id="toast"></div>
+    <button id="reset" title="Start a brand new island">🌱 New Island</button>
+    <div id="left-hud">
+      <button id="bag">🎒</button>
+      <div id="items"></div>
+    </div>
+    <div id="dialogue" hidden>
+      <b id="dlg-name"></b>
+      <span id="dlg-hearts"></span>
+      <p id="dlg-line"></p>
+    </div>
+    <div id="hotbar"></div>
+  </div>
+
+  <div id="craft" hidden>
+    <div id="craft-card">
+      <h2>🎒 Magic Crafting</h2>
+      <div id="pouch"></div>
+      <div id="recipes"></div>
+      <button id="craft-close">Done ✨</button>
+    </div>
+  </div>
+
+  <div id="touch-ui" hidden>
+    <div id="look-zone"></div>
+    <div id="joystick"><div id="knob"></div></div>
+    <div id="touch-buttons">
+      <button id="btn-talk" hidden>💬<span>talk</span></button>
+      <button id="btn-fly" hidden>🧹<span>fly</span></button>
+      <button id="btn-break">⛏️<span>break</span></button>
+      <button id="btn-place">🧱<span>place</span></button>
+      <button id="btn-down" hidden>⬇️<span>sink</span></button>
+      <button id="btn-jump">⬆️<span>jump</span></button>
+    </div>
+  </div>
+
+  <div id="help">
+    <div id="help-card">
+      <h1>✨ SpellCraft</h1>
+      <p class="subtitle">Your own magical island. Build anything!</p>
+      <div id="help-keys"></div>
+      <button id="start">Let's build! 🏝️</button>
+      <p class="tiny">Your island saves all by itself ✨</p>
+    </div>
+  </div>
+
+  <div id="fade"></div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
