@@ -1,12 +1,15 @@
 import * as THREE from 'three';
 
 export const TILE = 16;
-export const TILE_COUNT = 16;
+export const TILE_COUNT = 31;
 
 // Atlas tile layout:
 // 0 meadow-top  1 meadow-side  2 earth  3 pebble  4 sand  5 water
 // 6 timber-side 7 timber-top   8 leaf   9 crystal 10 lantern 11 blossom
 // 12 castle brick  13 roof slate  14 plank  15 bookshelf
+// 16 grass tuft (transparent)  17 willow strands (transparent)
+// 18 carrot (transparent)  19 pumpkin  20 bush  21 snow  22 ice  23 glass
+// 24 marble  25 night stone  26 sun stone  27 rainbow  28-30 cozy wools
 
 export interface Atlas {
   canvas: HTMLCanvasElement;
@@ -146,6 +149,109 @@ export function createAtlas(): Atlas {
       ctx.fillRect(TILE * 15 + x, rowY, 2, 5);
     }
   }
+
+  // 16: grass tuft — thin blades on a transparent background
+  for (let b = 0; b < 7; b++) {
+    const x = 1 + rnd(14);
+    const height = 5 + rnd(8);
+    const color = ['#5fae5f', '#7ed87e', '#98e898'][rnd(3)];
+    for (let y = 0; y < height; y++) {
+      const lean = y > height - 3 ? (b % 2 === 0 ? 1 : -1) : 0;
+      px(16, Math.max(0, Math.min(15, x + lean)), 15 - y, color);
+    }
+  }
+
+  // 17: willow strands — hanging vines with little leaves, transparent bg
+  for (const x of [2, 6, 10, 14]) {
+    const len = 12 + rnd(4);
+    for (let y = 0; y < len; y++) px(17, x, y, '#6fbf6e');
+    for (let y = 2; y < len; y += 3) {
+      px(17, Math.max(0, x - 1), y, '#8fdc8a');
+      px(17, Math.min(15, x + 1), y + 1, '#8fdc8a');
+    }
+  }
+
+  // 18: carrot — orange root poking out under feathery green tops
+  for (const cx of [4, 8, 12]) {
+    ctx.fillStyle = '#e8862a';
+    ctx.fillRect(TILE * 18 + cx - 1, 12, 2, 4);
+    px(18, cx - 1, 11, '#f29c44');
+    for (let y = 4; y < 12; y++) {
+      px(18, cx - 1 + (y % 2), y, '#4f9e4f');
+      if (y < 8) px(18, cx - 2 + (y % 3), y, '#6ec46e');
+    }
+  }
+
+  // 19: pumpkin — ribbed orange
+  fill(19, '#e8862a');
+  ctx.fillStyle = '#c96f1e';
+  for (let x = 1; x < TILE; x += 3) ctx.fillRect(TILE * 19 + x, 0, 1, TILE);
+  speckle(19, ['#f29c44', '#d97a24'], 20);
+  ctx.fillStyle = '#6b4a2f';
+  ctx.fillRect(TILE * 19 + 7, 0, 2, 2); // stem nub
+
+  // 20: bush — dense dark leaves
+  fill(20, '#5f9e54');
+  speckle(20, ['#4f8a45', '#73b566', '#456f3d', '#86c878'], 60);
+
+  // 21: snow — soft white sparkle
+  fill(21, '#f4f8ff');
+  speckle(21, ['#ffffff', '#e2ecfa', '#d4e4f7'], 35);
+
+  // 22: ice — pale blue with cracks
+  fill(22, '#bfe6f7');
+  ctx.strokeStyle = '#e4f5fd';
+  ctx.beginPath();
+  ctx.moveTo(TILE * 22 + 2, 13); ctx.lineTo(TILE * 22 + 7, 7); ctx.lineTo(TILE * 22 + 6, 2);
+  ctx.moveTo(TILE * 22 + 9, 14); ctx.lineTo(TILE * 22 + 12, 8);
+  ctx.stroke();
+  speckle(22, ['#d4effa'], 12);
+
+  // 23: glass — almost clear with a bright frame
+  fill(23, '#e8f6fc');
+  ctx.strokeStyle = '#ffffff';
+  ctx.strokeRect(TILE * 23 + 0.5, 0.5, TILE - 1, TILE - 1);
+  px(23, 3, 3, '#ffffff');
+  px(23, 4, 4, '#ffffff');
+
+  // 24: marble — white with soft gray veins
+  fill(24, '#f0f0f4');
+  ctx.strokeStyle = '#c9c9d4';
+  ctx.beginPath();
+  ctx.moveTo(TILE * 24, 4); ctx.lineTo(TILE * 24 + 6, 7); ctx.lineTo(TILE * 24 + 16, 5);
+  ctx.moveTo(TILE * 24, 12); ctx.lineTo(TILE * 24 + 9, 13); ctx.lineTo(TILE * 24 + 16, 10);
+  ctx.stroke();
+  speckle(24, ['#e2e2ea'], 10);
+
+  // 25: night stone — deep twilight with tiny stars
+  fill(25, '#3a3a4e');
+  speckle(25, ['#2e2e40', '#46465c'], 30);
+  speckle(25, ['#cfcfff', '#ffffff'], 5);
+
+  // 26: sun stone — molten gold (renders unlit, so it glows)
+  for (let x = 0; x < TILE; x++) {
+    for (let y = 0; y < TILE; y++) {
+      const d = Math.hypot(x - 7.5, y - 7.5);
+      px(26, x, y, d < 4 ? '#ffe98f' : d < 6.5 ? '#ffd24a' : '#f0b730');
+    }
+  }
+  speckle(26, ['#ffffff'], 4);
+
+  // 27: rainbow — every kid's favorite
+  const rainbow = ['#e06a6a', '#f0a04a', '#f7d44a', '#6ec46e', '#5fa8e0', '#a87ad6'];
+  for (let y = 0; y < TILE; y++) {
+    ctx.fillStyle = rainbow[Math.floor((y / TILE) * rainbow.length)];
+    ctx.fillRect(TILE * 27, y, TILE, 1);
+  }
+  speckle(27, ['#ffffff'], 6);
+
+  // 28-30: cozy wool blocks
+  fill(28, '#b8ecd4');
+  speckle(28, ['#a6e2c6', '#cdf4e2'], 30);
+  fill(29, '#bcd9f7');
+  speckle(29, ['#aacdf2', '#cfe5fa'], 30);
+  fill(30, '#f7c6d9');
+  speckle(30, ['#f2b4cd', '#fbd8e6'], 30);
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.magFilter = THREE.NearestFilter;

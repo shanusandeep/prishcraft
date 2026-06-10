@@ -7,6 +7,12 @@ export interface AvatarLook {
   /** floating name label above the head */
   name?: string;
   nameColor?: string;
+  /** whole-body scale (e.g. 0.7 for a small elf) */
+  scale?: number;
+  /** big pointy ears */
+  ears?: boolean;
+  /** pointy wizard hat in this color */
+  hat?: number;
 }
 
 export interface AvatarRig {
@@ -103,7 +109,34 @@ export function buildAvatar(look: AvatarLook): AvatarRig {
   legR.position.set(0.13, 0.65, 0);
 
   group.add(head, body, armL, armR, legL, legR);
+
+  if (look.hat !== undefined) {
+    const mat = new THREE.MeshLambertMaterial({ color: look.hat });
+    const brim = new THREE.Mesh(new THREE.BoxGeometry(0.74, 0.07, 0.74), mat);
+    const mid = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.22, 0.4), mat);
+    const tip = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.2, 0.22), mat);
+    const point = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.16, 0.1), mat);
+    brim.position.y = 0.28;
+    mid.position.y = 0.42;
+    tip.position.set(0.03, 0.62, 0);
+    point.position.set(0.07, 0.78, 0);
+    point.rotation.z = -0.25;
+    head.add(brim, mid, tip, point);
+  }
+
+  if (look.ears) {
+    const earGeo = new THREE.BoxGeometry(0.08, 0.3, 0.14);
+    const earL = new THREE.Mesh(earGeo, cream);
+    const earR = new THREE.Mesh(earGeo, cream);
+    earL.position.set(-0.32, 0.12, 0);
+    earR.position.set(0.32, 0.12, 0);
+    earL.rotation.z = 0.35;
+    earR.rotation.z = -0.35;
+    head.add(earL, earR);
+  }
+
   if (look.name) group.add(makeNameSprite(look.name, look.nameColor ?? '#5b4a78'));
+  if (look.scale) group.scale.setScalar(look.scale);
 
   return { group, armL, armR, legL, legR };
 }

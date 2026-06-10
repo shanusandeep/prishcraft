@@ -1,7 +1,12 @@
-import { World, SIZE, HEIGHT } from './world';
-import { AIR, WATER, CRYSTAL as CRYSTAL_ID, LANTERN as LANTERN_ID, BRICK } from './blocks';
+import { World, HEIGHT } from './world';
+import { AIR, WATER, CRYSTAL as CRYSTAL_ID, LANTERN as LANTERN_ID, BRICK, WILDGRASS, VINE, CARROT, PUMPKIN, BUSH, SNOW } from './blocks';
 
 export const WATER_Y = 8; // sea level (top water block)
+
+/** Radius of the big central island for a given world size. */
+export function mainIslandRadius(size: number): number {
+  return size <= 96 ? size * 0.42 : 50;
+}
 
 const MEADOW = 1, EARTH = 2, STONE = 3, SAND = 4, TIMBER = 6, LEAF = 7, CRYSTAL = 8, LANTERN = 9, BLOSSOM = 10;
 
@@ -52,25 +57,48 @@ function makeNoise(rand: () => number) {
 }
 
 export function generateIsland(world: World, seed: number): void {
+  const S = world.sizeX;
   const rand = mulberry32(seed);
   const fbm = makeNoise(rand);
   world.data.fill(AIR);
 
-  const heights = new Int8Array(SIZE * SIZE);
+  // one big home island, plus a scattering of small islands to fly to
+  const islets: Array<{ x: number; z: number; r: number }> = [
+    { x: S / 2, z: S / 2, r: mainIslandRadius(S) },
+  ];
+  if (S >= 128) {
+    const count = Math.round(S / 32);
+    for (let i = 0; i < count; i++) {
+      const angle = (i / count) * Math.PI * 2 + rand() * 0.8;
+      const minD = mainIslandRadius(S) + 18;
+      const maxD = S / 2 - 14;
+      const dist = minD + rand() * Math.max(4, maxD - minD);
+      islets.push({
+        x: S / 2 + Math.cos(angle) * dist,
+        z: S / 2 + Math.sin(angle) * dist,
+        r: 9 + rand() * 8,
+      });
+    }
+  }
 
-  for (let x = 0; x < SIZE; x++) {
-    for (let z = 0; z < SIZE; z++) {
-      // radial falloff makes a round-ish island with sea around it
-      const d = Math.hypot(x - 31.5, z - 31.5) / 28;
-      const mask = Math.max(0, 1 - d * d * d);
+  const heights = new Int8Array(S * S);
+
+  for (let x = 0; x < S; x++) {
+    for (let z = 0; z < S; z++) {
+      let mask = 0;
+      for (const islet of islets) {
+        const d = Math.hypot(x - islet.x, z - islet.z) / islet.r;
+        mask = Math.max(mask, 1 - d * d * d);
+      }
       const n = fbm(x * 0.07 + 100, z * 0.07 + 100);
       const h = Math.min(30, Math.floor(2 + (3 + n * 15) * mask));
-      heights[x + z * SIZE] = h;
+      heights[x + z * S] = h;
 
       for (let y = 0; y <= h; y++) {
         let id: number;
         if (y === 0 || y < h - 2) id = STONE;
         else if (y < h) id = EARTH;
+        else if (h >= 24) id = SNOW; // snowy peaks
         else id = h <= WATER_Y + 1 ? SAND : MEADOW; // beaches near the water line
         world.set(x, y, z, id);
       }
@@ -79,14 +107,16 @@ export function generateIsland(world: World, seed: number): void {
   }
 
   const surfaceIs = (x: number, z: number, id: number) =>
-    world.get(x, heights[x + z * SIZE], z) === id;
+    world.get(x, heights[x + z * S], z) === id;
+  const area = (S * S) / (64 * 64); // feature counts scale with the map
 
   // trees
   const trees: Array<[number, number]> = [];
-  for (let i = 0; i < 60 && trees.length < 12; i++) {
-    const x = 4 + Math.floor(rand() * (SIZE - 8));
-    const z = 4 + Math.floor(rand() * (SIZE - 8));
-    const h = heights[x + z * SIZE];
+  const treeTarget = Math.round(12 * area);
+  for (let i = 0; i < treeTarget * 6 && trees.length < treeTarget; i++) {
+    const x = 4 + Math.floor(rand() * (S - 8));
+    const z = 4 + Math.floor(rand() * (S - 8));
+    const h = heights[x + z * S];
     if (h <= WATER_Y + 1 || !surfaceIs(x, z, MEADOW)) continue;
     if (trees.some(([tx, tz]) => Math.hypot(tx - x, tz - z) < 5)) continue;
     trees.push([x, z]);
@@ -108,10 +138,11 @@ export function generateIsland(world: World, seed: number): void {
   }
 
   // crystal clusters with the occasional star lantern
-  for (let i = 0, placed = 0; i < 50 && placed < 7; i++) {
-    const x = 3 + Math.floor(rand() * (SIZE - 6));
-    const z = 3 + Math.floor(rand() * (SIZE - 6));
-    const h = heights[x + z * SIZE];
+  const crystalTarget = Math.round(7 * area);
+  for (let i = 0, placed = 0; i < crystalTarget * 8 && placed < crystalTarget; i++) {
+    const x = 3 + Math.floor(rand() * (S - 6));
+    const z = 3 + Math.floor(rand() * (S - 6));
+    const h = heights[x + z * S];
     if (h <= WATER_Y || world.get(x, h + 1, z) !== AIR) continue;
     world.set(x, h + 1, z, CRYSTAL);
     if (rand() < 0.5) world.set(x + 1, h + 1, z, CRYSTAL);
@@ -121,14 +152,121 @@ export function generateIsland(world: World, seed: number): void {
   }
 
   // blossom bushes
-  for (let i = 0, placed = 0; i < 40 && placed < 7; i++) {
-    const x = 3 + Math.floor(rand() * (SIZE - 6));
-    const z = 3 + Math.floor(rand() * (SIZE - 6));
-    const h = heights[x + z * SIZE];
+  const blossomTarget = Math.round(7 * area);
+  for (let i = 0, placed = 0; i < blossomTarget * 6 && placed < blossomTarget; i++) {
+    const x = 3 + Math.floor(rand() * (S - 6));
+    const z = 3 + Math.floor(rand() * (S - 6));
+    const h = heights[x + z * S];
     if (h <= WATER_Y + 1 || !surfaceIs(x, z, MEADOW)) continue;
     if (world.get(x, h + 1, z) !== AIR) continue;
     world.set(x, h + 1, z, BLOSSOM);
     placed++;
+  }
+}
+
+/** A big friendly willow: tall trunk, wide canopy, drooping vine strands. */
+export function plantWillow(world: World, x: number, z: number, h: number): void {
+  const top = h + 5;
+  for (let y = h + 1; y <= top; y++) world.set(x, y, z, TIMBER);
+  for (let dx = -3; dx <= 3; dx++) {
+    for (let dz = -3; dz <= 3; dz++) {
+      const r = Math.max(Math.abs(dx), Math.abs(dz));
+      if (r === 3 && (Math.abs(dx) + Math.abs(dz) > 4 || Math.random() < 0.3)) continue;
+      if (world.get(x + dx, top + 1, z + dz) === AIR) world.set(x + dx, top + 1, z + dz, LEAF);
+      if (r <= 1 && world.get(x + dx, top + 2, z + dz) === AIR) world.set(x + dx, top + 2, z + dz, LEAF);
+      // drooping strands from the canopy rim
+      if (r >= 2 && Math.random() < 0.6) {
+        const len = 2 + Math.floor(Math.random() * 3);
+        for (let k = 0; k < len; k++) {
+          if (world.get(x + dx, top - k, z + dz) !== AIR) break;
+          world.set(x + dx, top - k, z + dz, VINE);
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Adds grass tufts and willow trees to a world that doesn't have them yet
+ * (fresh islands AND old saves alike). `avoid` masks out areas like the
+ * portal clearing or the castle footprint.
+ */
+export function floraPass(
+  world: World,
+  willows: number,
+  avoid: (x: number, z: number) => boolean,
+): void {
+  if (world.data.includes(WILDGRASS)) return; // already done
+  const S = world.sizeX;
+
+  for (let x = 1; x < S - 1; x++) {
+    for (let z = 1; z < S - 1; z++) {
+      const y = world.surfaceY(x, z);
+      if (y <= WATER_Y || world.get(x, y, z) !== MEADOW) continue;
+      if (world.get(x, y + 1, z) !== AIR || avoid(x, z)) continue;
+      const roll = Math.random();
+      if (roll < 0.12) world.set(x, y + 1, z, WILDGRASS);
+      else if (roll < 0.132) world.set(x, y + 1, z, BUSH);
+    }
+  }
+
+  for (let i = 0, planted = 0; i < 80 && planted < willows; i++) {
+    const x = 5 + Math.floor(Math.random() * (S - 10));
+    const z = 5 + Math.floor(Math.random() * (S - 10));
+    if (avoid(x, z)) continue;
+    const h = world.surfaceY(x, z);
+    if (h <= WATER_Y + 1) continue;
+    const surface = world.get(x, h, z);
+    if (surface !== MEADOW && surface !== WILDGRASS) continue;
+    let clear = true;
+    for (let y = h + 1; y <= h + 8 && clear; y++) {
+      if (world.get(x, y, z) !== AIR && world.get(x, y, z) !== WILDGRASS) clear = false;
+    }
+    if (!clear) continue;
+    if (world.get(x, h, z) === WILDGRASS) world.set(x, h, z, AIR);
+    plantWillow(world, x, z, world.surfaceY(x, z));
+    planted++;
+  }
+}
+
+/**
+ * Little carrot-and-pumpkin fields on the island meadow. Runs once per world
+ * (skips if any carrot already exists), so old saves get fields too.
+ */
+export function cropsPass(world: World, avoid: (x: number, z: number) => boolean): void {
+  if (world.data.includes(CARROT)) return;
+  const S = world.sizeX;
+  const fieldTarget = S <= 96 ? 3 : 8;
+
+  for (let i = 0, fields = 0; i < fieldTarget * 30 && fields < fieldTarget; i++) {
+    const x0 = 4 + Math.floor(Math.random() * (S - 12));
+    const z0 = 4 + Math.floor(Math.random() * (S - 12));
+    if (avoid(x0, z0)) continue;
+    const h = world.surfaceY(x0, z0);
+    if (h <= WATER_Y + 1 || world.get(x0, h, z0) !== MEADOW) continue;
+    // needs a flat 5x4 patch
+    let flat = true;
+    for (let dx = 0; dx < 5 && flat; dx++) {
+      for (let dz = 0; dz < 4 && flat; dz++) {
+        if (world.surfaceY(x0 + dx, z0 + dz) !== h) flat = false;
+        const top = world.get(x0 + dx, h, z0 + dz);
+        if (top !== MEADOW && top !== WILDGRASS) flat = false;
+      }
+    }
+    if (!flat) continue;
+
+    for (let dx = 0; dx < 5; dx++) {
+      for (let dz = 0; dz < 4; dz++) {
+        const x = x0 + dx, z = z0 + dz;
+        world.set(x, h + 1, z, AIR); // clear tufts
+        if (dx === 0 || dx === 4 || dz === 0 || dz === 3) continue; // grass border
+        world.set(x, h, z, EARTH); // tilled soil
+        if (Math.random() < 0.8) world.set(x, h + 1, z, CARROT);
+      }
+    }
+    world.set(x0, h + 1, z0, PUMPKIN);
+    world.set(x0 + 4, h + 1, z0 + 3, PUMPKIN);
+    fields++;
   }
 }
 
@@ -137,7 +275,9 @@ export function generateIsland(world: World, seed: number): void {
  * Called only when no portal location is stored in the save.
  */
 export function buildIslandPortal(world: World): Gate {
-  const fx = 46, fz = 32; // east side of the island
+  // east of the main island's center
+  const fx = Math.floor(world.sizeX / 2) + 14;
+  const fz = Math.floor(world.sizeZ / 2);
   const h = Math.min(13, Math.max(WATER_Y + 2, world.surfaceY(fx + 2, fz)));
 
   // flatten a small clearing
@@ -165,13 +305,14 @@ export function buildIslandPortal(world: World): Gate {
   return { x: fx + 1, y: h + 1, z: fz };
 }
 
-/** A friendly spawn spot: meadow near the middle of the island. */
+/** A friendly spawn spot: meadow near the middle of the main island. */
 export function findSpawn(world: World): { x: number; y: number; z: number } {
+  const cx = Math.floor(world.sizeX / 2), cz = Math.floor(world.sizeZ / 2);
   for (let r = 0; r < 26; r++) {
     for (let dx = -r; dx <= r; dx++) {
       for (let dz = -r; dz <= r; dz++) {
         if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
-        const x = 32 + dx, z = 32 + dz;
+        const x = cx + dx, z = cz + dz;
         const y = world.surfaceY(x, z);
         if (y > WATER_Y && world.get(x, y, z) === MEADOW && world.get(x, y + 1, z) === AIR && world.get(x, y + 2, z) === AIR) {
           return { x: x + 0.5, y: y + 1, z: z + 0.5 };
@@ -179,5 +320,5 @@ export function findSpawn(world: World): { x: number; y: number; z: number } {
       }
     }
   }
-  return { x: 32.5, y: HEIGHT - 10, z: 32.5 };
+  return { x: cx + 0.5, y: HEIGHT - 10, z: cz + 0.5 };
 }

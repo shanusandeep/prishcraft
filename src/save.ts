@@ -7,6 +7,8 @@ const KEY = 'spellcraft.v1'; // kept stable; the payload carries its own version
 export interface SaveData {
   v: 2;
   seed: number;
+  /** island footprint (older saves are 64) */
+  islandSize?: number;
   islandWorld?: string; // base64 of run-length-encoded block data
   castleWorld?: string;
   islandGate?: Gate;

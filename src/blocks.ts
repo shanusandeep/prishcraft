@@ -10,7 +10,12 @@ export const ROOF = 12;
 export const PLANK = 13;
 export const BOOKSHELF = 14;
 
-export type Bucket = 'opaque' | 'glass' | 'glow';
+export const WILDGRASS = 15;
+export const VINE = 16;
+export const CARROT = 17;
+export const PUMPKIN = 18;
+
+export type Bucket = 'opaque' | 'glass' | 'glow' | 'cutout';
 
 export interface BlockDef {
   id: number;
@@ -21,6 +26,8 @@ export interface BlockDef {
   bucket: Bucket;
   /** does the player collide with it */
   solid: boolean;
+  /** 'cross' renders as two crossed quads (grass tufts, hanging vines) */
+  shape?: 'cross';
   /** too hard for bare hands — needs the wand to break */
   hard?: boolean;
   /** representative color for particles and UI fallbacks */
@@ -45,12 +52,37 @@ export const BLOCKS: BlockDef[] = [
   { id: 12, name: 'Roof Slate', tiles: t(13), bucket: 'opaque', solid: true, hard: true, color: 0x8d8ad6 },
   { id: 13, name: 'Plank', tiles: t(14), bucket: 'opaque', solid: true, color: 0xd9b487 },
   { id: 14, name: 'Bookshelf', tiles: { top: 14, side: 15, bottom: 14 }, bucket: 'opaque', solid: true, color: 0xb06a5a },
+  { id: 15, name: 'Wild Grass', tiles: t(16), bucket: 'cutout', solid: false, shape: 'cross', color: 0x7ed87e },
+  { id: 16, name: 'Willow Vine', tiles: t(17), bucket: 'cutout', solid: false, shape: 'cross', color: 0x8fdc8a },
+  { id: 17, name: 'Carrot', tiles: t(18), bucket: 'cutout', solid: false, shape: 'cross', color: 0xe8862a },
+  { id: 18, name: 'Pumpkin', tiles: t(19), bucket: 'opaque', solid: true, color: 0xe8862a },
+  { id: 19, name: 'Bush', tiles: t(20), bucket: 'opaque', solid: true, color: 0x5f9e54 },
+  { id: 20, name: 'Snow', tiles: t(21), bucket: 'opaque', solid: true, color: 0xf4f8ff },
+  { id: 21, name: 'Ice', tiles: t(22), bucket: 'glass', solid: true, color: 0xbfe6f7 },
+  { id: 22, name: 'Glass', tiles: t(23), bucket: 'glass', solid: true, color: 0xe8f6fc },
+  { id: 23, name: 'Marble', tiles: t(24), bucket: 'opaque', solid: true, hard: true, color: 0xf0f0f4 },
+  { id: 24, name: 'Night Stone', tiles: t(25), bucket: 'opaque', solid: true, hard: true, color: 0x3a3a4e },
+  { id: 25, name: 'Sun Stone', tiles: t(26), bucket: 'glow', solid: true, color: 0xffd24a },
+  { id: 26, name: 'Rainbow', tiles: t(27), bucket: 'opaque', solid: true, color: 0xe06aa8 },
+  { id: 27, name: 'Cozy Mint', tiles: t(28), bucket: 'opaque', solid: true, color: 0xb8ecd4 },
+  { id: 28, name: 'Cozy Sky', tiles: t(29), bucket: 'opaque', solid: true, color: 0xbcd9f7 },
+  { id: 29, name: 'Cozy Rose', tiles: t(30), bucket: 'opaque', solid: true, color: 0xf7c6d9 },
 ];
 
+export const BUSH = 19;
+export const SNOW = 20;
+
 /** Block ids available in the hotbar, in display order. */
-export const PLACEABLE = [1, 2, 3, 4, 6, 7, 8, 9, 10, 5, 11, 12, 13, 14];
+export const PLACEABLE = [
+  1, 2, 3, 4, 6, 7, 8, 9, 10, 5,
+  11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+  21, 22, 23, 24, 25, 26, 27, 28, 29,
+];
 
 export const isSolid = (id: number): boolean => BLOCKS[id]?.solid ?? false;
+/** What the crosshair can aim at: solid blocks plus grass/vines (not water). */
+export const isTargetable = (id: number): boolean =>
+  (BLOCKS[id]?.solid ?? false) || BLOCKS[id]?.shape === 'cross';
 export const isOpaque = (id: number): boolean => id !== AIR && BLOCKS[id].bucket === 'opaque';
 
 /** Should a face of block `a` be drawn against neighbor `b`? */

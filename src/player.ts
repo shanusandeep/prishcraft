@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { World, SIZE } from './world';
+import { World } from './world';
 import { isSolid, WATER } from './blocks';
 import { buildAvatar, AvatarRig } from './avatar';
 
@@ -14,7 +14,7 @@ const EPS = 0.001;
 
 function solidAt(world: World, x: number, y: number, z: number): boolean {
   // invisible walls at the map border so nobody falls off the edge of the world
-  if (x < 0 || x >= SIZE || z < 0 || z >= SIZE) return true;
+  if (x < 0 || x >= world.sizeX || z < 0 || z >= world.sizeZ) return true;
   return isSolid(world.get(x, y, z));
 }
 

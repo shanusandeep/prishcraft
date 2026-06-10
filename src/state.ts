@@ -16,7 +16,18 @@ export interface GameState {
   wishesDone: string[];
   /** which realm the player is in */
   where: 'island' | 'castle';
+  /** Pip's current command */
+  elfMode?: 'follow' | 'stay';
+  /** hearts, 0..10 */
+  health?: number;
+  /** drinks from trading: pumpkin juice and butterbrew */
+  foods?: { juice: number; brew: number };
 }
+
+export const MAX_HEALTH = 10;
+
+/** hearts restored per food */
+export const FOOD_VALUE = { carrot: 2, juice: 5, brew: 10 } as const;
 
 export interface Recipe {
   id: keyof Items;
@@ -68,6 +79,9 @@ export function defaultState(): GameState {
     friendship: {},
     wishesDone: [],
     where: 'island',
+    elfMode: 'follow',
+    health: MAX_HEALTH,
+    foods: { juice: 0, brew: 0 },
   };
 }
 

@@ -1,6 +1,6 @@
-import { BLOCKS, PLACEABLE } from './blocks';
+import { BLOCKS, PLACEABLE, CARROT } from './blocks';
 import { Atlas } from './textures';
-import { GameState, RECIPES, Recipe, canCraft } from './state';
+import { GameState, RECIPES, Recipe, canCraft, MAX_HEALTH } from './state';
 
 /** Hotbar, quest banner, item chips, crafting panel, dialogue, toasts. */
 export class UI {
@@ -12,6 +12,7 @@ export class UI {
   onCraft?: (recipe: Recipe) => void;
   onCraftToggle?: (open: boolean) => void;
   onFlyChip?: () => void;
+  onEat?: (kind: 'carrot' | 'juice' | 'brew') => void;
 
   private slots: HTMLButtonElement[] = [];
   private toastEl = document.getElementById('toast')!;
@@ -99,6 +100,17 @@ export class UI {
 
   // ---------- messages ----------
 
+  private iconCache = new Map<number, string>();
+
+  /** Small inline <img> of a block, so kids can SEE what to mine. */
+  blockIcon(id: number): string {
+    if (!this.iconCache.has(id)) {
+      const def = BLOCKS[id];
+      this.iconCache.set(id, this.atlas.icon(id === 1 ? def.tiles.top : def.tiles.side, 22));
+    }
+    return `<img class="block-icon" src="${this.iconCache.get(id)}" alt="${BLOCKS[id].name}">`;
+  }
+
   toast(message: string): void {
     this.toastEl.textContent = message;
     this.toastEl.classList.add('show');
@@ -106,8 +118,9 @@ export class UI {
     this.toastTimer = window.setTimeout(() => this.toastEl.classList.remove('show'), 1800);
   }
 
-  setGoal(text: string): void {
-    document.getElementById('quest')!.textContent = text;
+  /** Accepts simple HTML (block icons); content is app-generated, never user input. */
+  setGoal(html: string): void {
+    document.getElementById('quest')!.innerHTML = html;
   }
 
   showDialogue(name: string, color: string, line: string, hearts: number): void {
@@ -141,6 +154,24 @@ export class UI {
       chip(this.touch ? '🧹' : '🧹 <small>F</small>', 'Flying Broom — tap to fly!', () => this.onFlyChip?.());
     }
     if (state.items.key) chip('🗝️', 'Portal Key — the stone ring is awake');
+
+    // food chips — tap to munch
+    const carrots = state.resources[CARROT] ?? 0;
+    const foods = state.foods ?? { juice: 0, brew: 0 };
+    if (carrots > 0) chip(`🥕<small>×${carrots}</small>`, 'Carrot — eat for ❤️❤️', () => this.onEat?.('carrot'));
+    if (foods.juice > 0) chip(`🧃<small>×${foods.juice}</small>`, 'Pumpkin Juice — drink for ❤️×5', () => this.onEat?.('juice'));
+    if (foods.brew > 0) chip(`🥤<small>×${foods.brew}</small>`, 'Butterbrew — heals ALL hearts!', () => this.onEat?.('brew'));
+  }
+
+  setHearts(health: number): void {
+    const n = Math.max(0, Math.min(MAX_HEALTH, Math.round(health)));
+    document.getElementById('hearts')!.textContent = '❤️'.repeat(n) + '🤍'.repeat(MAX_HEALTH - n);
+  }
+
+  hurtFlash(): void {
+    const el = document.getElementById('hurt')!;
+    el.classList.add('flash');
+    window.setTimeout(() => el.classList.remove('flash'), 120);
   }
 
   isCraftOpen(): boolean {
@@ -193,7 +224,12 @@ export class UI {
         const have = state.resources[n.block] ?? 0;
         const span = document.createElement('span');
         span.className = have >= n.count ? 'ok' : 'miss';
-        span.textContent = `${BLOCKS[n.block].name} ${Math.min(have, n.count)}/${n.count}`;
+        const img = document.createElement('img');
+        img.className = 'block-icon';
+        img.src = this.atlas.icon(n.block === 1 ? BLOCKS[n.block].tiles.top : BLOCKS[n.block].tiles.side, 22);
+        img.alt = BLOCKS[n.block].name;
+        span.appendChild(img);
+        span.appendChild(document.createTextNode(` ${BLOCKS[n.block].name} ${Math.min(have, n.count)}/${n.count}`));
         needs.appendChild(span);
       }
       info.append(title, blurb, needs);

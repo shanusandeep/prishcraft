@@ -5,7 +5,7 @@ import { World } from './world';
 import { isSolid } from './blocks';
 
 /** The floor directly under a point — not the roof above it. */
-function groundBelow(world: World, x: number, y: number, z: number): number {
+export function groundBelow(world: World, x: number, y: number, z: number): number {
   const bx = Math.floor(x), bz = Math.floor(z);
   for (let by = Math.floor(y); by >= 0; by--) {
     if (isSolid(world.get(bx, by, bz))) return by;
@@ -39,6 +39,7 @@ export class NPC {
       hair: def.hair,
       name: def.name,
       nameColor: def.nameColor,
+      hat: def.hat,
     });
     this.group = this.rig.group;
     this.pos.set(def.spot[0], 13, def.spot[1]);

@@ -1,5 +1,5 @@
-import { World, SIZE } from './world';
-import { AIR, WATER, TIMBER, LEAF, CRYSTAL, LANTERN, BLOSSOM, BRICK, ROOF, PLANK, BOOKSHELF } from './blocks';
+import { World } from './world';
+import { AIR, WATER, TIMBER, LEAF, CRYSTAL, LANTERN, BLOSSOM, BRICK, ROOF, PLANK, BOOKSHELF, PUMPKIN, CARROT } from './blocks';
 import { mulberry32, WATER_Y } from './terrain';
 
 const MEADOW = 1, EARTH = 2, STONE = 3, SAND = 4;
@@ -17,6 +17,49 @@ function fill(world: World, x1: number, y1: number, z1: number, x2: number, y2: 
   }
 }
 
+function cottage(world: World, x0: number, z0: number, doorSide: 'E' | 'W'): void {
+  fill(world, x0 - 1, 13, z0 - 1, x0 + 6, 20, z0 + 6, AIR); // clear stray trees
+  fill(world, x0, 12, z0, x0 + 5, 12, z0 + 5, PLANK); // floor
+  fill(world, x0, 13, z0, x0 + 5, 16, z0 + 5, PLANK); // shell
+  fill(world, x0 + 1, 13, z0 + 1, x0 + 4, 16, z0 + 4, AIR); // hollow inside
+  for (const [cx, cz] of [[x0, z0], [x0 + 5, z0], [x0, z0 + 5], [x0 + 5, z0 + 5]] as const) {
+    fill(world, cx, 13, cz, cx, 16, cz, TIMBER); // corner posts
+  }
+  const doorX = doorSide === 'E' ? x0 + 5 : x0;
+  fill(world, doorX, 13, z0 + 2, doorX, 14, z0 + 3, AIR); // doorway
+  world.set(x0 + 2, 14, z0, CRYSTAL); // windows
+  world.set(x0 + 3, 14, z0 + 5, CRYSTAL);
+  // stepped roof
+  fill(world, x0 - 1, 17, z0 - 1, x0 + 6, 17, z0 + 6, ROOF);
+  fill(world, x0, 18, z0, x0 + 5, 18, z0 + 5, ROOF);
+  fill(world, x0 + 2, 19, z0 + 2, x0 + 3, 19, z0 + 3, ROOF);
+  // cozy inside + pumpkin by the door
+  world.set(x0 + 2, 16, z0 + 2, LANTERN);
+  fill(world, x0 + 1, 13, z0 + 4, x0 + 2, 13, z0 + 4, PLANK);
+  const stepX = doorSide === 'E' ? doorX + 1 : doorX - 1;
+  world.set(stepX, 13, z0 + 1, PUMPKIN);
+}
+
+/**
+ * A tiny wizard village on the path to the castle: two cottages and a
+ * market stall. Runs once per castle world (pumpkins are the marker).
+ */
+export function buildVillage(world: World): void {
+  if (world.data.includes(PUMPKIN)) return;
+  cottage(world, 21, 8, 'E');
+  cottage(world, 38, 8, 'W');
+  // market stall by the path
+  fill(world, 27, 13, 8, 29, 17, 10, AIR);
+  for (const [px, pz] of [[27, 8], [29, 8], [27, 10], [29, 10]] as const) {
+    fill(world, px, 13, pz, px, 15, pz, TIMBER);
+  }
+  fill(world, 26, 16, 7, 30, 16, 11, ROOF);
+  fill(world, 27, 13, 10, 29, 13, 10, PLANK); // counter
+  world.set(27, 14, 10, PUMPKIN);
+  world.set(29, 14, 10, CARROT);
+  world.set(28, 14, 10, LANTERN);
+}
+
 /**
  * The castle realm: a high plateau island with a walled castle on it —
  * four towers with spiral stairs, a great hall with a pitched roof,
@@ -26,9 +69,9 @@ export function generateCastleRealm(world: World, seed: number): void {
   const rand = mulberry32(seed);
   world.data.fill(AIR);
 
-  // ---- plateau terrain ----
-  for (let x = 0; x < SIZE; x++) {
-    for (let z = 0; z < SIZE; z++) {
+  // ---- plateau terrain (the castle realm is a compact 64x64) ----
+  for (let x = 0; x < world.sizeX; x++) {
+    for (let z = 0; z < world.sizeZ; z++) {
       const pd = Math.max(Math.abs(x - 32), Math.abs(z - 32));
       const h = pd <= 24 ? 12 : Math.max(2, 12 - (pd - 24) * 2);
       for (let y = 0; y <= h; y++) {
@@ -182,6 +225,8 @@ export function generateCastleRealm(world: World, seed: number): void {
     world.set(x, 13, z, TIMBER);
     world.set(x, 14, z, LANTERN);
   }
+
+  buildVillage(world);
 
   // ---- the return portal ----
   fill(world, 30, 13, 14, 30, 16, 14, BRICK);

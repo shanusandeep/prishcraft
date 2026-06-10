@@ -20,6 +20,7 @@ export class Controls {
   onTalk?: () => void;
   onFly?: () => void;
   onCraft?: () => void;
+  onEat?: () => void;
 
   private keys = new Set<string>();
 
@@ -31,6 +32,7 @@ export class Controls {
       if (e.code === 'KeyE') this.onTalk?.();
       if (e.code === 'KeyF') this.onFly?.();
       if (e.code === 'KeyC') this.onCraft?.();
+      if (e.code === 'KeyQ') this.onEat?.();
     });
     document.addEventListener('keyup', (e) => this.keys.delete(e.code));
     window.addEventListener('blur', () => this.keys.clear());

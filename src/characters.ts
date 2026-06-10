@@ -1,4 +1,4 @@
-import { TIMBER, CRYSTAL, LANTERN, BLOSSOM } from './blocks';
+import { TIMBER, CRYSTAL, LANTERN, BLOSSOM, CARROT, PUMPKIN } from './blocks';
 
 // The castle friends.
 //
@@ -12,12 +12,16 @@ export interface CharacterDef {
   robe: number;
   hair: number;
   nameColor: string;
+  /** pointy wizard hat color (traders wear them) */
+  hat?: number;
   /** home spot in the castle realm: [x, z] */
   spot: [number, number];
   /** things they say, cycled each chat */
   lines: string[];
   /** a little fetch-wish: bring them blocks to become best friends */
-  wish: { block: number; count: number; ask: string; thanks: string };
+  wish?: { block: number; count: number; ask: string; thanks: string };
+  /** a repeatable shop trade: blocks in, a drink out */
+  trade?: { takesBlock: number; takesCount: number; gives: 'juice' | 'brew'; givesName: string; thanks: string };
 }
 
 export const CHARACTERS: CharacterDef[] = [
@@ -91,6 +95,50 @@ export const CHARACTERS: CharacterDef[] = [
       count: 2,
       ask: 'May I have 2 Dream Crystals 💎? They whisper the loveliest things.',
       thanks: "Oh, lovely whispers! We're proper friends now.",
+    },
+  },
+];
+
+/** The village shopkeepers — wizards in pointy hats who trade food. */
+export const TRADERS: CharacterDef[] = [
+  {
+    name: 'Granny Thistle',
+    robe: 0x9e6a3a,
+    hair: 0xd9d9d9,
+    hat: 0x6e5aa8,
+    nameColor: '#8a5a2a',
+    spot: [24.5, 11.5],
+    lines: [
+      'Fresh Pumpkin Juice! Bring me 2 Pumpkins 🎃 and a cup is yours.',
+      'My cottage roof is real slate, you know. Only the best in the village.',
+      'Carrots grow on the island across the portal. Lovely fields out there.',
+    ],
+    trade: {
+      takesBlock: PUMPKIN,
+      takesCount: 2,
+      gives: 'juice',
+      givesName: 'Pumpkin Juice',
+      thanks: 'Two plump pumpkins! Here — one Pumpkin Juice, fresh-squeezed! 🧃',
+    },
+  },
+  {
+    name: 'Mr. Fizzlepop',
+    robe: 0x3a6e4e,
+    hair: 0x6b4a2f,
+    hat: 0x2f5e42,
+    nameColor: '#2f6e4e',
+    spot: [40.5, 11.5],
+    lines: [
+      'Butterbrew! Frothy, warm, and butterscotchy. 4 Carrots 🥕 a mug!',
+      'Why carrots? My recipe, my secret. *winks*',
+      'A mug of Butterbrew fixes every heart. Doctor Fizzlepop’s orders!',
+    ],
+    trade: {
+      takesBlock: CARROT,
+      takesCount: 4,
+      gives: 'brew',
+      givesName: 'Butterbrew',
+      thanks: 'Four crunchy carrots! One frothy Butterbrew, coming up! 🥤',
     },
   },
 ];

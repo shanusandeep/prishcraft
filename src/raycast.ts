@@ -1,5 +1,5 @@
 import { World } from './world';
-import { isSolid } from './blocks';
+import { isTargetable } from './blocks';
 
 export interface Hit {
   x: number; y: number; z: number;
@@ -45,7 +45,7 @@ export function raycastVoxels(
       nx = 0; ny = 0; nz = -stepZ;
     }
     const id = world.get(x, y, z);
-    if (isSolid(id)) return { x, y, z, nx, ny, nz, id };
+    if (isTargetable(id)) return { x, y, z, nx, ny, nz, id };
   }
   return null;
 }
