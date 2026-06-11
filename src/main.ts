@@ -2,7 +2,7 @@ import './style.css';
 import * as THREE from 'three';
 import { AIR, BLOCKS, WATER, VINE, CARROT, PUMPKIN, CHEST, CRYSTAL, TIMBER, LANTERN, BLOSSOM, BED, isSolid } from './blocks';
 import { World } from './world';
-import { generateIsland, findSpawn, buildIslandPortal, floraPass, cropsPass, treasurePass, renovateVillage, villagePlots, burrowSpot, Gate } from './terrain';
+import { generateIsland, findSpawn, buildIslandPortal, floraPass, cropsPass, treasurePass, renovateVillage, findHamletSites, buildHamlet, villagePlots, burrowSpot, Gate } from './terrain';
 import { Elf, Mermaid, findMermaidSpot } from './creatures';
 import {
   generateCastleRealm, CASTLE_GATE, CASTLE_SPAWN,
@@ -19,7 +19,7 @@ import { TouchControls, isTouchDevice } from './touch';
 import { Particles } from './effects';
 import { UI } from './ui';
 import { NPC } from './npc';
-import { CHARACTERS, TRADERS, FAMILIES, WEASLEYS, CharacterDef } from './characters';
+import { CHARACTERS, TRADERS, FAMILIES, WEASLEYS, HAMLET_FOLK, CharacterDef } from './characters';
 import { RECIPES, Recipe, canCraft, craft, defaultState, MAX_HEALTH, FOOD_VALUE } from './state';
 import { writeSave, readSave, decodeWorldInto, encodeWorld, clearSave } from './save';
 
@@ -130,12 +130,15 @@ let spawn = findSpawn(island);
 floraPass(island, Math.round(3 * island.sizeX / 64), nearGate); // tufts + willows (old saves too)
 cropsPass(island, nearGate); // carrot & pumpkin fields
 treasurePass(island, spawn, nearGate); // spawn village + hidden chests
-if ((state.villageV ?? 0) < 1) {
-  // old saves get the renovation crew: bigger houses, real furniture
+if ((state.villageV ?? 0) < 2) {
+  // old saves get the renovation crew: manor houses with hallways and rooms,
+  // real low-profile beds, and brand-new hamlets on the far islands
   renovateVillage(island, spawn, nearGate);
-  state.villageV = 1; // islandEncDirty starts true, so the next save picks this up
-  window.setTimeout(() => ui.toast('🏗️ The village got a renovation — BIGGER houses with real beds, tables, and bathrooms!'), 2500);
+  for (const site of findHamletSites(island, spawn)) buildHamlet(island, site.x, site.z);
+  state.villageV = 2; // islandEncDirty starts true, so the next save picks this up
+  window.setTimeout(() => ui.toast('🏗️ Grand renovation! Manor houses with hallways — and new hamlets on far islands!'), 2500);
 }
+let hamletSites = findHamletSites(island, spawn);
 
 let castle: World | null = null;
 if (saved?.castleWorld) {
@@ -233,6 +236,21 @@ function placeIslandVillagers(): void {
     npcFamily.set(weasley.name, WEASLEYS.surname);
     addMember(weasley, burrow, 10);
   }
+  // far-island hamlet folk, two per hamlet
+  hamletSites.forEach((site, i) => {
+    for (let k = 0; k < 2; k++) {
+      const def = HAMLET_FOLK[(i * 2 + k) % HAMLET_FOLK.length];
+      const npc = new NPC({
+        ...def,
+        spot: [site.x + (k ? 3.5 : -3.5), site.z + 1.5],
+        indoor: [site.x + (k ? 7.5 : -6.5), site.z - 0.5],
+      });
+      npc.pos.y = 15;
+      scene.add(npc.group);
+      npc.group.visible = state.where === 'island';
+      islandNpcs.push(npc);
+    }
+  });
 }
 placeIslandVillagers();
 
@@ -1351,6 +1369,7 @@ ui.onReset = () => {
   castle = null;
   world = island;
   npcRoot.visible = false;
+  hamletSites = findHamletSites(island, spawn);
   placeIslandVillagers();
   for (const npc of islandNpcs) npc.group.visible = true;
   const s = spawn;

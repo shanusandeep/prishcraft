@@ -117,7 +117,7 @@ export function defaultState(): GameState {
     peaceful: false,
     castleVisited: false,
     pipKidnapped: false,
-    villageV: 1,
+    villageV: 2,
   };
 }
 

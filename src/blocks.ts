@@ -28,6 +28,8 @@ export interface BlockDef {
   solid: boolean;
   /** 'cross' renders as two crossed quads (grass tufts, hanging vines) */
   shape?: 'cross';
+  /** render height 0..1 — furniture like beds renders as a low slab */
+  height?: number;
   /** too hard for bare hands — needs the wand to break */
   hard?: boolean;
   /** representative color for particles and UI fallbacks */
@@ -70,12 +72,12 @@ export const BLOCKS: BlockDef[] = [
   // not placeable — found in the world, breaks open into treasure
   { id: 30, name: 'Treasure Chest', tiles: { top: 32, side: 31, bottom: 32 }, bucket: 'opaque', solid: true, color: 0xc09368 },
   // furniture — sleep in beds at night!
-  { id: 31, name: 'Bed', tiles: { top: 33, side: 34, bottom: 14 }, bucket: 'opaque', solid: true, color: 0xe06a8a },
+  { id: 31, name: 'Bed', tiles: { top: 33, side: 34, bottom: 14 }, bucket: 'opaque', solid: true, height: 0.45, color: 0xe06a8a },
   { id: 32, name: 'Painting', tiles: { top: 14, side: 35, bottom: 14 }, bucket: 'opaque', solid: true, color: 0xd9a520 },
-  { id: 33, name: 'Chair', tiles: { top: 14, side: 36, bottom: 14 }, bucket: 'opaque', solid: true, color: 0xb8895e },
-  { id: 34, name: 'Feast Table', tiles: { top: 37, side: 14, bottom: 14 }, bucket: 'opaque', solid: true, color: 0xe0a85f },
-  { id: 35, name: 'Toilet', tiles: t(38), bucket: 'opaque', solid: true, color: 0xf4f6fa },
-  { id: 36, name: 'Sink', tiles: t(39), bucket: 'opaque', solid: true, color: 0xf4f6fa },
+  { id: 33, name: 'Chair', tiles: { top: 14, side: 36, bottom: 14 }, bucket: 'opaque', solid: true, height: 0.55, color: 0xb8895e },
+  { id: 34, name: 'Feast Table', tiles: { top: 37, side: 14, bottom: 14 }, bucket: 'opaque', solid: true, height: 0.85, color: 0xe0a85f },
+  { id: 35, name: 'Toilet', tiles: t(38), bucket: 'opaque', solid: true, height: 0.65, color: 0xf4f6fa },
+  { id: 36, name: 'Sink', tiles: t(39), bucket: 'opaque', solid: true, height: 0.8, color: 0xf4f6fa },
   { id: 37, name: 'Shower', tiles: t(40), bucket: 'opaque', solid: true, color: 0xbfe6f7 },
   { id: 38, name: 'Spider Web', tiles: t(41), bucket: 'cutout', solid: false, shape: 'cross', color: 0xe8e8f0 },
 ];

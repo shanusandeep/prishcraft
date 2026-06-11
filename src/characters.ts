@@ -286,6 +286,34 @@ export const WEASLEYS: FamilyDef = {
   ],
 };
 
+/** Folk of the far-island hamlets — two move into each hamlet. */
+export const HAMLET_FOLK: CharacterDef[] = [
+  c('Skye Saltbeard', 0x4a6e8c, 0xd9d9d9, '#3a5e7c', [
+    'A visitor! We hardly ever get visitors out here.',
+    'I sailed every inch of this sea. Well. Floated, mostly.',
+  ], { hat: 0x2e4a6e }),
+  c('Coral', 0xe08a9e, 0x6b4a2f, '#c06a80', [
+    'Our little island is the prettiest one. Everyone says so. (I say so.)',
+    'Pumpkins for juice, dear? 2 plump ones and the cup is yours.',
+  ], { trade: { takesBlock: PUMPKIN, takesCount: 2, gives: 'juice', givesName: 'Pumpkin Juice', thanks: 'Lovely pumpkins! Fresh juice for the traveler! 🧃' } }),
+  c('Finn Driftwood', 0x6e8c5a, 0xf0e0a8, '#5a7a4a', [
+    'I once saw the mermaid wave at me. Best day of my life.',
+    'Treasure washes up on far islands like this one. Look around!',
+  ]),
+  c('Pebble', 0x8a8a9e, 0x3a3a4e, '#6e6e8a', [
+    'I collect rocks. This island is my favorite rock.',
+    'The light beam on the big island? I can see it from my window!',
+  ], { hat: 0x5a5a72 }),
+  c('Juniper', 0x7a5cc4, 0xd96f32, '#6a4cb4', [
+    'I moved out here for the quiet. Then the slimes came. Less quiet.',
+    'A hero like you should visit ALL the islands. We get lonely!',
+  ]),
+  c('Moss', 0x5a8c6e, 0x8a5a2a, '#4a7a5e', [
+    'Shhh. The wild grass whispers if you stand very still.',
+    'My cottage bathroom has a SHOWER. Island life is luxury.',
+  ]),
+];
+
 /** The village shopkeepers — wizards in pointy hats who trade food. */
 export const TRADERS: CharacterDef[] = [
   {

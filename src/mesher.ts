@@ -206,15 +206,17 @@ export class VoxelRenderer {
             continue;
           }
 
+          const height = def.height ?? 1;
           for (const face of FACES) {
             const neighbor = this.world.get(x + face.dir[0], y + face.dir[1], z + face.dir[2]);
-            if (!faceVisible(id, neighbor)) continue;
+            // low furniture (beds, chairs) always shows its top and sides
+            if (!faceVisible(id, neighbor) && !(height < 1 && face.dir[1] >= 0)) continue;
 
             const tile = def.tiles[face.pick];
             const { u0, v0, u1, v1 } = this.atlas.uv(tile);
             const base = buf.pos.length / 3;
             for (const corner of face.corners) {
-              buf.pos.push(x + corner.pos[0], y + corner.pos[1], z + corner.pos[2]);
+              buf.pos.push(x + corner.pos[0], y + corner.pos[1] * height, z + corner.pos[2]);
               buf.norm.push(...face.dir);
               buf.uv.push(u0 + (u1 - u0) * corner.uv[0], v0 + (v1 - v0) * corner.uv[1]);
               buf.col.push(face.shade, face.shade, face.shade);
