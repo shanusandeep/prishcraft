@@ -102,6 +102,11 @@ export class UI {
   select(index: number): void {
     this.selected = (index + this.slots.length) % this.slots.length;
     this.slots.forEach((s, i) => s.classList.toggle('selected', i === this.selected));
+    // on phones the hotbar scrolls horizontally — keep the selection in view
+    const hotbar = document.getElementById('hotbar')!;
+    if (hotbar.scrollWidth > hotbar.clientWidth) {
+      this.slots[this.selected].scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+    }
   }
 
   selectedBlockId(): number {

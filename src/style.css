@@ -97,6 +97,45 @@ html, body {
   #quest { max-width: 86vw; }
 }
 
+/* phones: one scrollable hotbar row + a compact HUD, so the world stays visible */
+@media (max-width: 700px) {
+  #hotbar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    justify-content: flex-start;
+    max-width: 94vw;
+    bottom: 10px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  #hotbar::-webkit-scrollbar { display: none; }
+  .slot { flex: 0 0 44px; width: 44px; height: 44px; }
+  .slot.selected { transform: translateY(-3px) scale(1.06); }
+
+  #quest { top: 60px; font-size: 12px; padding: 6px 14px; max-width: 92vw; }
+  #hearts { top: 52px; font-size: 11px; left: 10px; }
+  #bossbar { top: 86px; width: 86vw; }
+  #left-hud { top: 8px; left: 8px; gap: 5px; }
+  #bag { width: 38px; height: 38px; font-size: 18px; }
+  .item-chip { padding: 6px 9px; font-size: 15px; }
+  #reset { top: 8px; right: 8px; padding: 8px 12px; font-size: 13px; }
+  #dialogue { top: 96px; padding: 10px 14px; }
+  #dialogue p { font-size: 13.5px; }
+  .reply-chip { padding: 7px 11px; font-size: 12.5px; }
+
+  #joystick { width: 96px; height: 96px; left: 14px; bottom: 76px; }
+  #knob { width: 42px; height: 42px; margin: -21px 0 0 -21px; }
+  #touch-buttons {
+    right: 10px; bottom: 76px; gap: 8px;
+    display: grid;
+    grid-template-columns: repeat(2, 56px);
+    justify-items: end;
+  }
+  #touch-buttons button { width: 56px; height: 56px; font-size: 20px; }
+  #touch-buttons button span { font-size: 9px; }
+  #touch-buttons button[hidden] { display: none; }
+}
+
 /* ---------- Quest banner, items, dialogue ---------- */
 
 #quest {
