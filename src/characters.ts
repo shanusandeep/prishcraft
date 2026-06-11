@@ -116,6 +116,45 @@ export const WELCOMER: CharacterDef = {
   ],
 };
 
+/** The spawn-village folk. Spots are relative to spawn, set at runtime. */
+export const VILLAGERS: CharacterDef[] = [
+  WELCOMER,
+  {
+    name: 'Sprout',
+    robe: 0x6e8c3a,
+    hair: 0x8a5a2a,
+    hat: 0x4a6e2a,
+    nameColor: '#5a7a2a',
+    spot: [0, 0],
+    lines: [
+      'Fresh juice for hungry builders! 3 Carrots 🥕 for one juice!',
+      'My carrots are the crunchiest on the island. Probably.',
+      'The farm is right over there — pick all you like, it regrows… eventually.',
+    ],
+    trade: {
+      takesBlock: CARROT,
+      takesCount: 3,
+      gives: 'juice',
+      givesName: 'Pumpkin Juice',
+      thanks: 'Three crunchy carrots! One juice for you! 🧃',
+    },
+  },
+  {
+    name: 'Bram',
+    robe: 0x8c6e3a,
+    hair: 0x2e2a33,
+    hat: 0x6b4a2f,
+    nameColor: '#7a5a2a',
+    spot: [0, 0],
+    lines: [
+      'I built every roof in this village. Slate never leaks!',
+      'Try the Cozy blocks for walls. Very snuggly.',
+      'Night Stone sparkles like the night sky. Spooky-pretty.',
+      'A village needs a builder like you. Add a house anywhere!',
+    ],
+  },
+];
+
 /** The village shopkeepers — wizards in pointy hats who trade food. */
 export const TRADERS: CharacterDef[] = [
   {

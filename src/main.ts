@@ -14,7 +14,7 @@ import { TouchControls, isTouchDevice } from './touch';
 import { Particles } from './effects';
 import { UI } from './ui';
 import { NPC } from './npc';
-import { CHARACTERS, TRADERS, WELCOMER } from './characters';
+import { CHARACTERS, TRADERS, VILLAGERS } from './characters';
 import { RECIPES, Recipe, canCraft, craft, defaultState, MAX_HEALTH, FOOD_VALUE } from './state';
 import { writeSave, readSave, decodeWorldInto, encodeWorld, clearSave } from './save';
 
@@ -151,15 +151,18 @@ const npcs: NPC[] = [...CHARACTERS, ...TRADERS].map((def) => {
 });
 npcRoot.visible = state.where === 'castle';
 
-// Wanda welcomes you in the spawn village
+// the spawn-village folk: Wanda by the plaza, Sprout at the farm, Bram on the west street
 let islandNpcs: NPC[] = [];
 function placeIslandVillagers(): void {
   for (const npc of islandNpcs) scene.remove(npc.group);
-  const wanda = new NPC({ ...WELCOMER, spot: [spawn.x + 3.5, spawn.z + 1.5] });
-  wanda.pos.y = spawn.y;
-  islandNpcs = [wanda];
-  scene.add(wanda.group);
-  wanda.group.visible = state.where === 'island';
+  const offsets: Array<[number, number]> = [[3.5, 1.5], [11.5, 10.5], [-12.5, 0.5]];
+  islandNpcs = VILLAGERS.map((def, i) => {
+    const npc = new NPC({ ...def, spot: [spawn.x + offsets[i][0], spawn.z + offsets[i][1]] });
+    npc.pos.y = spawn.y;
+    scene.add(npc.group);
+    npc.group.visible = state.where === 'island';
+    return npc;
+  });
 }
 placeIslandVillagers();
 
