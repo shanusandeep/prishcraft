@@ -67,6 +67,14 @@ export class VoxelRenderer {
     };
   }
 
+  /** How far (in chunks) the world is built around the player. */
+  viewRadius = 8;
+
+  private lastCx = NaN;
+  private lastCz = NaN;
+  private queue: Array<[number, number]> = [];
+  private queued = new Set<string>();
+
   private chunksX(): number {
     return Math.ceil(this.world.sizeX / CHUNK);
   }
@@ -75,14 +83,8 @@ export class VoxelRenderer {
     return Math.ceil(this.world.sizeZ / CHUNK);
   }
 
-  rebuildAll(): void {
-    for (let cx = 0; cx < this.chunksX(); cx++) {
-      for (let cz = 0; cz < this.chunksZ(); cz++) this.buildChunk(cx, cz);
-    }
-  }
-
   /** Swap to a different world (realm), even one of a different size. */
-  setWorld(world: World): void {
+  setWorld(world: World, px: number, pz: number): void {
     for (const meshes of this.meshes.values()) {
       for (const mesh of meshes) {
         this.scene.remove(mesh);
@@ -90,11 +92,64 @@ export class VoxelRenderer {
       }
     }
     this.meshes.clear();
+    this.queue.length = 0;
+    this.queued.clear();
+    this.lastCx = NaN;
+    this.lastCz = NaN;
     this.world = world;
-    this.rebuildAll();
+    this.update(px, pz, 81); // build the whole nearby area right away
   }
 
-  /** Rebuild the chunk containing a block, plus neighbors when on a border. */
+  /**
+   * Streams chunks around the player: big worlds are never fully meshed,
+   * just the part you can see. Call every frame; `budget` chunks are built
+   * per call (nearest first), and far-away chunks are dropped.
+   */
+  update(px: number, pz: number, budget = 3): void {
+    const ccx = Math.floor(px / CHUNK), ccz = Math.floor(pz / CHUNK);
+    const R = this.viewRadius;
+
+    if (ccx !== this.lastCx || ccz !== this.lastCz) {
+      this.lastCx = ccx;
+      this.lastCz = ccz;
+
+      const wanted: Array<[number, number, number]> = [];
+      for (let cx = Math.max(0, ccx - R); cx <= Math.min(this.chunksX() - 1, ccx + R); cx++) {
+        for (let cz = Math.max(0, ccz - R); cz <= Math.min(this.chunksZ() - 1, ccz + R); cz++) {
+          const key = `${cx},${cz}`;
+          if (this.meshes.has(key) || this.queued.has(key)) continue;
+          wanted.push([cx, cz, Math.max(Math.abs(cx - ccx), Math.abs(cz - ccz))]);
+        }
+      }
+      wanted.sort((a, b) => a[2] - b[2]);
+      for (const [cx, cz] of wanted) {
+        this.queue.push([cx, cz]);
+        this.queued.add(`${cx},${cz}`);
+      }
+
+      // forget chunks far behind us
+      for (const [key, meshes] of this.meshes) {
+        const [cx, cz] = key.split(',').map(Number);
+        if (Math.max(Math.abs(cx - ccx), Math.abs(cz - ccz)) > R + 2) {
+          for (const mesh of meshes) {
+            this.scene.remove(mesh);
+            mesh.geometry.dispose();
+          }
+          this.meshes.delete(key);
+        }
+      }
+    }
+
+    for (let i = 0; i < budget && this.queue.length > 0; ) {
+      const [cx, cz] = this.queue.shift()!;
+      this.queued.delete(`${cx},${cz}`);
+      if (Math.max(Math.abs(cx - this.lastCx), Math.abs(cz - this.lastCz)) > R) continue; // drifted away
+      this.buildChunk(cx, cz);
+      i++;
+    }
+  }
+
+  /** Rebuild the chunk containing an edited block, plus built neighbors on a border. */
   blockChanged(x: number, z: number): void {
     const dirty = new Set<string>();
     const cx = Math.floor(x / CHUNK), cz = Math.floor(z / CHUNK);
@@ -104,6 +159,7 @@ export class VoxelRenderer {
     if (z % CHUNK === 0 && cz > 0) dirty.add(`${cx},${cz - 1}`);
     if (z % CHUNK === CHUNK - 1 && cz < this.chunksZ() - 1) dirty.add(`${cx},${cz + 1}`);
     for (const key of dirty) {
+      if (!this.meshes.has(key)) continue; // not built; it'll mesh correctly when streamed in
       const [a, b] = key.split(',').map(Number);
       this.buildChunk(a, b);
     }

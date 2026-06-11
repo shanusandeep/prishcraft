@@ -1,8 +1,8 @@
 import './style.css';
 import * as THREE from 'three';
-import { AIR, BLOCKS, WATER, VINE, CARROT, isSolid } from './blocks';
+import { AIR, BLOCKS, WATER, VINE, CARROT, PUMPKIN, CHEST, CRYSTAL, TIMBER, LANTERN, BLOSSOM, isSolid } from './blocks';
 import { World } from './world';
-import { generateIsland, findSpawn, buildIslandPortal, floraPass, cropsPass, Gate } from './terrain';
+import { generateIsland, findSpawn, buildIslandPortal, floraPass, cropsPass, treasurePass, Gate } from './terrain';
 import { Elf, Mermaid, findMermaidSpot } from './creatures';
 import { generateCastleRealm, CASTLE_GATE, CASTLE_SPAWN } from './castle';
 import { VoxelRenderer } from './mesher';
@@ -14,14 +14,14 @@ import { TouchControls, isTouchDevice } from './touch';
 import { Particles } from './effects';
 import { UI } from './ui';
 import { NPC } from './npc';
-import { CHARACTERS, TRADERS } from './characters';
+import { CHARACTERS, TRADERS, WELCOMER } from './characters';
 import { RECIPES, Recipe, canCraft, craft, defaultState, MAX_HEALTH, FOOD_VALUE } from './state';
 import { writeSave, readSave, decodeWorldInto, encodeWorld, clearSave } from './save';
 
 // ---------- renderer / scene ----------
 
 /** Footprint of newly-grown islands. Old saves keep their size until reset. */
-const ISLAND_SIZE = 192;
+const ISLAND_SIZE = 500;
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -29,11 +29,13 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 document.getElementById('app')!.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-scene.fog = new THREE.Fog(0xffe9f3, 60, 170);
+// fog hides the edge of the streamed-in world (8 chunks = 128 blocks)
+scene.fog = new THREE.Fog(0xffe9f3, 55, 115);
 
 const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 400);
 
-// soft gradient sky dome
+// soft gradient sky dome (follows the camera, like a real sky)
+let dome: THREE.Mesh;
 {
   const c = document.createElement('canvas');
   c.width = 2;
@@ -47,11 +49,10 @@ const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerH
   ctx.fillRect(0, 0, 2, 256);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
-  const dome = new THREE.Mesh(
-    new THREE.SphereGeometry(Math.max(260, ISLAND_SIZE * 1.7), 16, 12),
+  dome = new THREE.Mesh(
+    new THREE.SphereGeometry(300, 16, 12),
     new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide, fog: false }),
   );
-  dome.position.set(ISLAND_SIZE / 2, 0, ISLAND_SIZE / 2);
   scene.add(dome);
 }
 
@@ -100,11 +101,13 @@ if (!saved?.islandWorld || !decodeWorldInto(island, saved.islandWorld)) {
   generateIsland(island, seed);
 }
 let islandGate: Gate = saved?.islandGate ?? buildIslandPortal(island);
-// keep flora/fields away from the portal clearing
+// keep generated extras away from the portal clearing
 const nearGate = (x: number, z: number) =>
   Math.abs(x - islandGate.x) < 9 && Math.abs(z - islandGate.z) < 7;
+let spawn = findSpawn(island);
 floraPass(island, Math.round(3 * island.sizeX / 64), nearGate); // tufts + willows (old saves too)
 cropsPass(island, nearGate); // carrot & pumpkin fields
+treasurePass(island, spawn, nearGate); // spawn village + hidden chests
 
 let castle: World | null = null;
 if (saved?.castleWorld) {
@@ -124,21 +127,20 @@ function getCastle(): World {
 
 let world = state.where === 'castle' ? getCastle() : island;
 
-const voxels = new VoxelRenderer(world, scene, atlas);
-voxels.rebuildAll();
-
 // ---------- player / npcs / controls / ui ----------
 
 const player = new Player();
 scene.add(player.group);
 
-let spawn = findSpawn(island);
 if (saved?.player) {
   player.pos.set(saved.player.x, saved.player.y, saved.player.z);
 } else {
   player.pos.set(spawn.x, spawn.y, spawn.z);
 }
 player.setWandVisible(state.items.wand);
+
+const voxels = new VoxelRenderer(world, scene, atlas);
+voxels.setWorld(world, player.pos.x, player.pos.z);
 
 const npcRoot = new THREE.Group();
 scene.add(npcRoot);
@@ -148,6 +150,18 @@ const npcs: NPC[] = [...CHARACTERS, ...TRADERS].map((def) => {
   return npc;
 });
 npcRoot.visible = state.where === 'castle';
+
+// Wanda welcomes you in the spawn village
+let islandNpcs: NPC[] = [];
+function placeIslandVillagers(): void {
+  for (const npc of islandNpcs) scene.remove(npc.group);
+  const wanda = new NPC({ ...WELCOMER, spot: [spawn.x + 3.5, spawn.z + 1.5] });
+  wanda.pos.y = spawn.y;
+  islandNpcs = [wanda];
+  scene.add(wanda.group);
+  wanda.group.visible = state.where === 'island';
+}
+placeIslandVillagers();
 
 // Pip the house elf — follows you everywhere
 const elf = new Elf();
@@ -186,7 +200,7 @@ scene.add(highlight);
 let saveTimer: number | undefined;
 function markDirty(): void {
   window.clearTimeout(saveTimer);
-  saveTimer = window.setTimeout(saveNow, 1200);
+  saveTimer = window.setTimeout(saveNow, 2500); // big worlds take a moment to encode
 }
 function saveNow(): void {
   writeSave({
@@ -253,12 +267,58 @@ function targetBlock() {
   return hit;
 }
 
+/** Treasure chests pop open into random loot — sometimes a whole magic item. */
+function openChest(): void {
+  const roll = Math.random();
+  let msg: string;
+  if (roll < 0.06) {
+    if (!state.items.wand) {
+      state.items.wand = true;
+      player.setWandVisible(true);
+      msg = '🪄 A WIZARD WAND was sleeping inside!! So lucky!';
+    } else if (!state.items.broom) {
+      state.items.broom = true;
+      ui.setFlyButtonVisible(touch);
+      msg = '🧹 A FLYING BROOM was inside!! Press F to fly!';
+    } else if (!state.items.key) {
+      state.items.key = true;
+      msg = '🗝️ The PORTAL KEY was inside!! The stone ring wakes…';
+    } else {
+      state.foods!.brew += 3;
+      msg = '🥤 THREE Butterbrews! Jackpot!';
+    }
+  } else if (roll < 0.16) {
+    state.foods!.brew++;
+    msg = '🥤 A Butterbrew!';
+  } else if (roll < 0.32) {
+    state.foods!.juice++;
+    msg = '🧃 A Pumpkin Juice!';
+  } else {
+    const bundles: Array<[number, number]> = [[CRYSTAL, 3], [TIMBER, 3], [LANTERN, 2], [BLOSSOM, 3], [CARROT, 3], [PUMPKIN, 2]];
+    const [block, count] = bundles[Math.floor(Math.random() * bundles.length)];
+    state.resources[block] = (state.resources[block] ?? 0) + count;
+    msg = `${count}× ${BLOCKS[block].name}!`;
+  }
+  ui.toast('🎁 ' + msg);
+  ui.setItems(state);
+  ui.renderCraft(state);
+  updateGoal();
+}
+
 function doBreak(): void {
   if (ui.isCraftOpen()) return;
   const hit = targetBlock();
   if (!hit) return;
   if (hit.y === 0) {
     ui.toast('The world base is magic-proof ✨');
+    return;
+  }
+  if (hit.id === CHEST) {
+    world.set(hit.x, hit.y, hit.z, AIR);
+    voxels.blockChanged(hit.x, hit.z);
+    particles.burst(hit.x + 0.5, hit.y + 0.5, hit.z + 0.5, 0xffd24a, 16);
+    openChest();
+    markDirty();
     return;
   }
   const def = BLOCKS[hit.id];
@@ -330,15 +390,15 @@ type Talkable = { kind: 'npc'; npc: NPC } | { kind: 'elf' } | { kind: 'mermaid' 
 function nearestTalkable(): Talkable | null {
   let best: Talkable | null = null;
   let bestDist = 3.6;
-  if (state.where === 'castle') {
-    for (const npc of npcs) {
-      const d = npc.pos.distanceTo(player.pos);
-      if (d < bestDist) {
-        best = { kind: 'npc', npc };
-        bestDist = d;
-      }
+  const nearby = state.where === 'castle' ? npcs : islandNpcs;
+  for (const npc of nearby) {
+    const d = npc.pos.distanceTo(player.pos);
+    if (d < bestDist) {
+      best = { kind: 'npc', npc };
+      bestDist = d;
     }
-  } else {
+  }
+  if (state.where === 'island') {
     const d = mermaid.pos.distanceTo(player.pos);
     if (d < Math.max(bestDist, 4.5)) {
       best = { kind: 'mermaid' };
@@ -377,6 +437,16 @@ function talk(): void {
   const npc = who.npc;
   const def = npc.def;
   const hearts = (state.friendship[def.name] ?? 0);
+
+  // plain chatters (like Wanda) just cycle their lines
+  if (!def.trade && !def.wish) {
+    state.friendship[def.name] = hearts + 1;
+    ui.showDialogue(def.name, def.nameColor, def.lines[npc.lineIndex % def.lines.length], state.friendship[def.name]);
+    npc.lineIndex++;
+    particles.burst(npc.pos.x, npc.pos.y + 1.6, npc.pos.z, 0xff6b9d, 4);
+    markDirty();
+    return;
+  }
 
   // shopkeepers: a repeatable trade instead of a wish
   if (def.trade) {
@@ -520,9 +590,9 @@ function travel(to: 'island' | 'castle'): void {
   window.setTimeout(() => {
     state.where = to;
     world = to === 'castle' ? getCastle() : island;
-    voxels.setWorld(world);
     npcRoot.visible = to === 'castle';
     mermaid.group.visible = to === 'island';
+    for (const npc of islandNpcs) npc.group.visible = to === 'island';
     player.setFlying(false);
     ui.setDownVisible(false);
     player.vel.set(0, 0, 0);
@@ -533,6 +603,7 @@ function travel(to: 'island' | 'castle'): void {
       player.pos.set(islandGate.x + 1.5, islandGate.y, islandGate.z + 2.5);
       ui.toast('🏝️ Home again!');
     }
+    voxels.setWorld(world, player.pos.x, player.pos.z);
     wasInGate = true; // don't bounce straight back
     elf.teleportTo(player.pos); // Pip comes along through the portal
     updateGoal();
@@ -606,18 +677,21 @@ ui.onReset = () => {
   island = new World(ISLAND_SIZE, ISLAND_SIZE); // new islands grow BIG
   generateIsland(island, seed);
   islandGate = buildIslandPortal(island);
+  spawn = findSpawn(island);
   floraPass(island, Math.round(3 * island.sizeX / 64), nearGate);
   cropsPass(island, nearGate);
+  treasurePass(island, spawn, nearGate);
   const mspot = findMermaidSpot(island);
   mermaid.setHome(mspot.x, mspot.z);
   mermaid.group.visible = true;
   castle = null;
   world = island;
-  voxels.setWorld(island);
   npcRoot.visible = false;
-  spawn = findSpawn(island);
+  placeIslandVillagers();
+  for (const npc of islandNpcs) npc.group.visible = true;
   const s = spawn;
   player.pos.set(s.x, s.y, s.z);
+  voxels.setWorld(island, s.x, s.z);
   elf.teleportTo(player.pos);
   player.vel.set(0, 0, 0);
   player.setFlying(false);
@@ -703,9 +777,13 @@ function frame(): void {
     for (const npc of npcs) npc.update(dt, world, player.pos);
   } else {
     mermaid.update(dt, world, player.pos);
+    for (const npc of islandNpcs) npc.update(dt, world, player.pos);
   }
   elf.update(dt, world, player.pos, state.elfMode ?? 'follow');
   if (touch) ui.setTalkVisible(!!nearestTalkable());
+
+  voxels.update(player.pos.x, player.pos.z, 3); // stream the world in around the player
+  dome.position.copy(camera.position); // the sky travels with you
 
   checkWillowWhomp(dt);
   checkPortals();
@@ -737,7 +815,7 @@ window.addEventListener('resize', () => {
 // small debug handle for poking at the game from the console
 (window as unknown as Record<string, unknown>).__spellcraft = {
   world: () => world, player, controls, camera, ui, state, npcs,
-  doBreak, doPlace, talk, toggleFly, travel, craftRecipe,
+  doBreak, doPlace, talk, toggleFly, travel, craftRecipe, targetBlock,
   get islandGate() { return islandGate; },
   get seed() { return seed; },
 };

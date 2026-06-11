@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 export const TILE = 16;
-export const TILE_COUNT = 31;
+export const TILE_COUNT = 33;
 
 // Atlas tile layout:
 // 0 meadow-top  1 meadow-side  2 earth  3 pebble  4 sand  5 water
@@ -10,6 +10,7 @@ export const TILE_COUNT = 31;
 // 16 grass tuft (transparent)  17 willow strands (transparent)
 // 18 carrot (transparent)  19 pumpkin  20 bush  21 snow  22 ice  23 glass
 // 24 marble  25 night stone  26 sun stone  27 rainbow  28-30 cozy wools
+// 31 chest front/side  32 chest top
 
 export interface Atlas {
   canvas: HTMLCanvasElement;
@@ -252,6 +253,27 @@ export function createAtlas(): Atlas {
   speckle(29, ['#aacdf2', '#cfe5fa'], 30);
   fill(30, '#f7c6d9');
   speckle(30, ['#f2b4cd', '#fbd8e6'], 30);
+
+  // 31: treasure chest side — banded wood with a golden latch
+  fill(31, '#a87c52');
+  ctx.fillStyle = '#8a6240';
+  ctx.fillRect(TILE * 31, 0, TILE, 1);
+  ctx.fillRect(TILE * 31, 5, TILE, 2); // lid seam
+  ctx.fillRect(TILE * 31, 15, TILE, 1);
+  ctx.fillStyle = '#c89c70';
+  ctx.fillRect(TILE * 31, 2, TILE, 1);
+  ctx.fillRect(TILE * 31, 9, TILE, 1);
+  ctx.fillRect(TILE * 31, 12, TILE, 1);
+  ctx.fillStyle = '#ffd24a'; // latch
+  ctx.fillRect(TILE * 31 + 6, 4, 4, 5);
+  ctx.fillStyle = '#b8860b';
+  ctx.fillRect(TILE * 31 + 7, 6, 2, 2);
+
+  // 32: chest top — banded wood
+  fill(32, '#b8895e');
+  ctx.fillStyle = '#8a6240';
+  for (const y of [0, 7, 8, 15]) ctx.fillRect(TILE * 32, y, TILE, 1);
+  speckle(32, ['#a87c52', '#c89c70'], 14);
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.magFilter = THREE.NearestFilter;

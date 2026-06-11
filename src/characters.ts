@@ -99,6 +99,23 @@ export const CHARACTERS: CharacterDef[] = [
   },
 ];
 
+/** Greets you in the spawn village on the island (spot is set at runtime). */
+export const WELCOMER: CharacterDef = {
+  name: 'Wanda',
+  robe: 0xb05a8a,
+  hair: 0xd9d9d9,
+  hat: 0xe0a85f,
+  nameColor: '#a04a7a',
+  spot: [0, 0],
+  lines: [
+    'Welcome home! This little village is all yours.',
+    'See the treasure chests? Break them open — surprises inside! 🎁',
+    'Mine Dream Crystals 💎 and Timber 🪵 to craft your wand!',
+    'The stone ring east of here leads somewhere magical…',
+    'Lucky explorers find wands and brooms sleeping inside chests!',
+  ],
+};
+
 /** The village shopkeepers — wizards in pointy hats who trade food. */
 export const TRADERS: CharacterDef[] = [
   {

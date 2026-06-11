@@ -67,10 +67,13 @@ export const BLOCKS: BlockDef[] = [
   { id: 27, name: 'Cozy Mint', tiles: t(28), bucket: 'opaque', solid: true, color: 0xb8ecd4 },
   { id: 28, name: 'Cozy Sky', tiles: t(29), bucket: 'opaque', solid: true, color: 0xbcd9f7 },
   { id: 29, name: 'Cozy Rose', tiles: t(30), bucket: 'opaque', solid: true, color: 0xf7c6d9 },
+  // not placeable — found in the world, breaks open into treasure
+  { id: 30, name: 'Treasure Chest', tiles: { top: 32, side: 31, bottom: 32 }, bucket: 'opaque', solid: true, color: 0xc09368 },
 ];
 
 export const BUSH = 19;
 export const SNOW = 20;
+export const CHEST = 30;
 
 /** Block ids available in the hotbar, in display order. */
 export const PLACEABLE = [

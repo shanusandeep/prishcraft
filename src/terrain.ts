@@ -1,11 +1,11 @@
 import { World, HEIGHT } from './world';
-import { AIR, WATER, CRYSTAL as CRYSTAL_ID, LANTERN as LANTERN_ID, BRICK, WILDGRASS, VINE, CARROT, PUMPKIN, BUSH, SNOW } from './blocks';
+import { AIR, WATER, CRYSTAL as CRYSTAL_ID, LANTERN as LANTERN_ID, BRICK, WILDGRASS, VINE, CARROT, PUMPKIN, BUSH, SNOW, CHEST, TIMBER as TIMBER_ID, ROOF, PLANK } from './blocks';
 
 export const WATER_Y = 8; // sea level (top water block)
 
 /** Radius of the big central island for a given world size. */
 export function mainIslandRadius(size: number): number {
-  return size <= 96 ? size * 0.42 : 50;
+  return size <= 96 ? size * 0.42 : Math.min(90, size * 0.28);
 }
 
 const MEADOW = 1, EARTH = 2, STONE = 3, SAND = 4, TIMBER = 6, LEAF = 7, CRYSTAL = 8, LANTERN = 9, BLOSSOM = 10;
@@ -67,7 +67,7 @@ export function generateIsland(world: World, seed: number): void {
     { x: S / 2, z: S / 2, r: mainIslandRadius(S) },
   ];
   if (S >= 128) {
-    const count = Math.round(S / 32);
+    const count = Math.round(S / 24);
     for (let i = 0; i < count; i++) {
       const angle = (i / count) * Math.PI * 2 + rand() * 0.8;
       const minD = mainIslandRadius(S) + 18;
@@ -267,6 +267,90 @@ export function cropsPass(world: World, avoid: (x: number, z: number) => boolean
     world.set(x0, h + 1, z0, PUMPKIN);
     world.set(x0 + 4, h + 1, z0 + 3, PUMPKIN);
     fields++;
+  }
+}
+
+function fillBox(world: World, x1: number, y1: number, z1: number, x2: number, y2: number, z2: number, id: number): void {
+  for (let x = x1; x <= x2; x++) {
+    for (let y = y1; y <= y2; y++) {
+      for (let z = z1; z <= z2; z++) world.set(x, y, z, id);
+    }
+  }
+}
+
+/** A cozy cottage with floor at `baseY`, used by both villages. */
+export function cottage(world: World, x0: number, z0: number, doorSide: 'E' | 'W', baseY: number): void {
+  fillBox(world, x0 - 1, baseY + 1, z0 - 1, x0 + 6, baseY + 8, z0 + 6, AIR); // clear the plot
+  fillBox(world, x0, baseY, z0, x0 + 5, baseY, z0 + 5, PLANK); // floor
+  fillBox(world, x0, baseY + 1, z0, x0 + 5, baseY + 4, z0 + 5, PLANK); // shell
+  fillBox(world, x0 + 1, baseY + 1, z0 + 1, x0 + 4, baseY + 4, z0 + 4, AIR); // hollow inside
+  for (const [cx, cz] of [[x0, z0], [x0 + 5, z0], [x0, z0 + 5], [x0 + 5, z0 + 5]] as const) {
+    fillBox(world, cx, baseY + 1, cz, cx, baseY + 4, cz, TIMBER_ID); // corner posts
+  }
+  const doorX = doorSide === 'E' ? x0 + 5 : x0;
+  fillBox(world, doorX, baseY + 1, z0 + 2, doorX, baseY + 2, z0 + 3, AIR); // doorway
+  world.set(x0 + 2, baseY + 2, z0, CRYSTAL_ID); // windows
+  world.set(x0 + 3, baseY + 2, z0 + 5, CRYSTAL_ID);
+  // stepped roof
+  fillBox(world, x0 - 1, baseY + 5, z0 - 1, x0 + 6, baseY + 5, z0 + 6, ROOF);
+  fillBox(world, x0, baseY + 6, z0, x0 + 5, baseY + 6, z0 + 5, ROOF);
+  fillBox(world, x0 + 2, baseY + 7, z0 + 2, x0 + 3, baseY + 7, z0 + 3, ROOF);
+  // cozy inside + pumpkin by the door
+  world.set(x0 + 2, baseY + 4, z0 + 2, LANTERN_ID);
+  fillBox(world, x0 + 1, baseY + 1, z0 + 4, x0 + 2, baseY + 1, z0 + 4, PLANK);
+  const stepX = doorSide === 'E' ? doorX + 1 : doorX - 1;
+  world.set(stepX, baseY + 1, z0 + 1, PUMPKIN);
+}
+
+/**
+ * The spawn village + treasure chests, added once per island
+ * (chests aren't placeable, so they make a reliable "already done" marker).
+ * Two cottages flank the spot where you first appear, with chests to open,
+ * and more chests hide all across the islands.
+ */
+export function treasurePass(
+  world: World,
+  spawn: { x: number; z: number },
+  avoid: (x: number, z: number) => boolean,
+): void {
+  if (world.data.includes(CHEST)) return;
+  const S = world.sizeX;
+  const sx = Math.floor(spawn.x), sz = Math.floor(spawn.z);
+  const h = world.surfaceY(sx, sz);
+
+  const flatten = (x1: number, z1: number, x2: number, z2: number) => {
+    for (let x = x1; x <= x2; x++) {
+      for (let z = z1; z <= z2; z++) {
+        for (let y = 1; y < h; y++) if (world.get(x, y, z) === AIR || world.get(x, y, z) === WATER) world.set(x, y, z, EARTH);
+        world.set(x, h, z, MEADOW);
+        for (let y = h + 1; y <= h + 10; y++) world.set(x, y, z, AIR);
+      }
+    }
+  };
+
+  // the home village
+  flatten(sx + 5, sz - 4, sx + 12, sz + 3);
+  cottage(world, sx + 6, sz - 3, 'W', h);
+  flatten(sx - 12, sz - 4, sx - 5, sz + 3);
+  cottage(world, sx - 11, sz - 3, 'E', h);
+  // lamp posts and the village's own treasure
+  for (const [lx, lz] of [[sx - 2, sz - 4], [sx + 2, sz - 4]] as const) {
+    world.set(lx, h + 1, lz, TIMBER_ID);
+    world.set(lx, h + 2, lz, LANTERN_ID);
+  }
+  world.set(sx + 3, h + 1, sz + 4, CHEST);
+  world.set(sx - 3, h + 1, sz + 5, CHEST);
+
+  // chests hidden across every island
+  const target = Math.round(((S * S) / (64 * 64)) * 0.8) + 4;
+  for (let i = 0, placed = 0; i < target * 30 && placed < target; i++) {
+    const x = 3 + Math.floor(Math.random() * (S - 6));
+    const z = 3 + Math.floor(Math.random() * (S - 6));
+    if (avoid(x, z) || Math.hypot(x - sx, z - sz) < 20) continue;
+    const y = world.surfaceY(x, z);
+    if (y <= WATER_Y || world.get(x, y + 1, z) !== AIR) continue;
+    world.set(x, y + 1, z, CHEST);
+    placed++;
   }
 }
 
