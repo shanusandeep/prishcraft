@@ -35,6 +35,14 @@ ssh "${SSH_OPTS[@]}" "$SERVER" '
 echo "==> Uploading dist/"
 rsync -az --delete -e "ssh ${SSH_OPTS[*]}" dist/ "$SERVER:/srv/spellcraft/"
 
+echo "==> Uploading website"
+ssh "${SSH_OPTS[@]}" "$SERVER" '
+  if [ ! -d /srv/spellcraft-site ]; then
+    sudo mkdir -p /srv/spellcraft-site && sudo chown "$USER" /srv/spellcraft-site
+  fi
+'
+rsync -az --delete -e "ssh ${SSH_OPTS[*]}" site/ "$SERVER:/srv/spellcraft-site/"
+
 echo "==> Adding SpellCraft site to Caddyfile (if not already there)"
 ssh "${SSH_OPTS[@]}" "$SERVER" '
   if ! grep -q "SpellCraft" /srv/dailydose/Caddyfile; then
@@ -52,55 +60,66 @@ EOF
   else
     echo "   Caddyfile already has the SpellCraft block."
   fi
-  if ! grep -q "prishcraft.shanuva.com" /srv/dailydose/Caddyfile; then
+  if ! grep -q "spellcraft-site" /srv/dailydose/Caddyfile; then
+    cp /srv/dailydose/Caddyfile /srv/dailydose/Caddyfile.bak.$(date +%Y%m%d%H%M%S)
+    # drop the old domain block (it was appended last) and write the site+game layout
+    sed -i "/# --- PrishCraft on its own domain/,\$d" /srv/dailydose/Caddyfile
     cat >> /srv/dailydose/Caddyfile <<'"'"'EOF'"'"'
-
-# --- PrishCraft on its own domain with auto-HTTPS ---
+# --- PrishCraft: website at the root, the game under /play ---
 prishcraft.shanuva.com {
 	encode gzip
-	root * /srv/spellcraft
-	file_server
+	handle_path /play* {
+		root * /srv/spellcraft
+		file_server
+	}
+	handle {
+		root * /srv/spellcraft-site
+		file_server
+	}
 }
 EOF
-    echo "   Domain block added."
+    echo "   Domain block now serves site + /play."
   fi
 '
 
-echo "==> Adding docker-compose.override.yml (if not already there)"
+echo "==> Updating docker-compose.override.yml (if needed)"
 ssh "${SSH_OPTS[@]}" "$SERVER" '
   OVERRIDE=/srv/dailydose/repo/docker-compose.override.yml
-  if [ ! -f "$OVERRIDE" ]; then
+  if ! grep -q "spellcraft-site" "$OVERRIDE" 2>/dev/null; then
     cat > "$OVERRIDE" <<'"'"'EOF'"'"'
-# Local-only additions; not in git. Adds the SpellCraft static site to caddy.
+# Local-only additions; not in git. Adds the PrishCraft game + site to caddy.
 services:
   caddy:
     ports:
       - "8090:8090"
     volumes:
       - /srv/spellcraft:/srv/spellcraft:ro
+      - /srv/spellcraft-site:/srv/spellcraft-site:ro
 EOF
-    echo "   Override created."
+    echo "   Override updated."
   else
-    echo "   Override already exists — leaving it alone."
+    echo "   Override already current."
   fi
 '
 
 echo "==> Opening port 8090 in the firewall (best effort)"
 ssh "${SSH_OPTS[@]}" "$SERVER" 'command -v ufw >/dev/null && sudo ufw allow 8090/tcp || true'
 
-echo "==> Restarting caddy with the new mount/port"
+echo "==> Restarting caddy with the new mounts/config"
 ssh "${SSH_OPTS[@]}" "$SERVER" 'cd /srv/dailydose/repo && docker compose up -d caddy'
 
 echo "==> Verifying"
 sleep 3
-SPELL=$(curl -s -o /dev/null -w '%{http_code}' "http://157.173.198.113:8090/")
+SITE=$(curl -s -o /dev/null -w '%{http_code}' "https://prishcraft.shanuva.com/")
+GAME=$(curl -s -o /dev/null -w '%{http_code}' "https://prishcraft.shanuva.com/play/")
 DOSE=$(curl -s -o /dev/null -w '%{http_code}' "http://157.173.198.113/")
-echo "   SpellCraft  http://157.173.198.113:8090/  -> $SPELL (want 200)"
-echo "   DailyDose   http://157.173.198.113/       -> $DOSE (want 401/200, unchanged)"
+echo "   Website   https://prishcraft.shanuva.com/      -> $SITE (want 200)"
+echo "   Game      https://prishcraft.shanuva.com/play/ -> $GAME (want 200)"
+echo "   DailyDose http://157.173.198.113/              -> $DOSE (want 303/401/200, unchanged)"
 
-if [ "$SPELL" = "200" ]; then
-  echo "✨ Deployed! Play at https://prishcraft.shanuva.com/"
+if [ "$SITE" = "200" ] && [ "$GAME" = "200" ]; then
+  echo "✨ Deployed! Site: https://prishcraft.shanuva.com/ · Game: /play/"
 else
-  echo "⚠️  SpellCraft did not come up — check 'docker compose logs caddy' on the server."
+  echo "⚠️  Something did not come up — check 'docker compose logs caddy' on the server."
   exit 1
 fi

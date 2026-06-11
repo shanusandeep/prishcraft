@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PrishCraft — Build. Cast. Explore.</title>
+  <meta name="description" content="PrishCraft is a magical voxel adventure: build castles, craft wands, fly brooms, befriend creatures, and explore enchanted islands — free in your browser." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>✨</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700;900&family=Quicksand:wght@400;500;600;700&family=Press+Start+2P&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="loader" aria-hidden="true"><div class="loader-star">✦</div><p>Conjuring the realm…</p></div>
+
+  <canvas id="stars" aria-hidden="true"></canvas>
+  <div class="aurora" aria-hidden="true"></div>
+
+  <header class="nav">
+    <a class="nav-logo" href="#top">✦ PrishCraft</a>
+    <nav aria-label="Main">
+      <a href="#features">Magic</a>
+      <a href="#worlds">Worlds</a>
+      <a href="#classes">Classes</a>
+      <a href="#creatures">Creatures</a>
+      <a href="#spellbook">Spellbook</a>
+      <a href="#gallery">Gallery</a>
+    </nav>
+    <div class="nav-right">
+      <button id="theme-toggle" aria-label="Switch between night and day theme">🌙</button>
+      <a class="btn btn-small btn-gold spell-btn" href="/play/">Play Now</a>
+    </div>
+  </header>
+
+  <main id="top">
+    <!-- ============ HERO ============ -->
+    <section class="hero">
+      <div class="hero-isles" aria-hidden="true">
+        <div class="isle isle-1"><div class="isle-castle"></div></div>
+        <div class="isle isle-2"></div>
+        <div class="isle isle-3"></div>
+      </div>
+      <p class="hero-kicker">A magical voxel adventure</p>
+      <h1 class="hero-logo">PRISH<span>CRAFT</span></h1>
+      <p class="hero-tagline">Build<span class="dot">✦</span>Cast<span class="dot">✦</span>Explore</p>
+      <p class="hero-sub">Raise castles block by block, craft your wand, fly your broom across
+        enchanted isles, and befriend the creatures who live there. Free, in your browser.</p>
+      <div class="hero-cta">
+        <a class="btn btn-gold btn-big spell-btn" href="/play/">⚡ Play Now — Free</a>
+        <button class="btn btn-ghost btn-big spell-btn" id="trailer-btn">▶ Watch Trailer</button>
+      </div>
+      <p class="hero-note pixel">MADE BY TWO KIDS &amp; THEIR DAD · NO DOWNLOADS · NO ACCOUNTS</p>
+    </section>
+
+    <!-- ============ FEATURES ============ -->
+    <section class="section" id="features">
+      <h2 class="section-title">Six Kinds of <em>Magic</em></h2>
+      <p class="section-sub">Everything a young witch or wizard needs.</p>
+      <div class="grid grid-3">
+        <article class="card reveal"><div class="card-icon">🏰</div><h3>Magical Building</h3><p>30 enchanted blocks — rainbow, sun stone, dream crystal — and endless room to raise castles, cottages, and kingdoms.</p></article>
+        <article class="card reveal"><div class="card-icon">🪄</div><h3>Wand Crafting</h3><p>Gather crystals and timber to craft a wand that breaks any block and reaches twice as far. Pure pickaxe-and-then-some.</p></article>
+        <article class="card reveal"><div class="card-icon">🧪</div><h3>Potions &amp; Snacks</h3><p>Trade pumpkins for fresh Pumpkin Juice and carrots for frothy Butterbrew — every heart restored.</p></article>
+        <article class="card reveal"><div class="card-icon">🐉</div><h3>Fantasy Creatures</h3><p>A mermaid sings off the shore, a house elf follows at your heel, and stranger creatures are stirring…</p></article>
+        <article class="card reveal"><div class="card-icon">🧹</div><h3>Broom Flight</h3><p>Craft a flying broom and soar over snowy peaks, willow groves, and a sea dotted with mystery islands.</p></article>
+        <article class="card reveal"><div class="card-icon">🗺️</div><h3>Epic Quests</h3><p>Wake the sleeping portal, explore the castle realm, grant wishes, open treasure chests — and make every friend in the land.</p></article>
+      </div>
+    </section>
+
+    <!-- ============ WORLDS ============ -->
+    <section class="section" id="worlds">
+      <h2 class="section-title">Realms to <em>Explore</em></h2>
+      <p class="section-sub">Step through the stone ring. See where it takes you.</p>
+      <div class="worlds">
+        <article class="world reveal" style="--w1:#1c3f2e; --w2:#4a9e5f;">
+          <div class="world-art world-forest" aria-hidden="true"></div>
+          <h3>Enchanted Isles</h3>
+          <p>Willow groves that whomp, glowing crystals, wild grass and hidden treasure across a vast archipelago.</p>
+          <span class="badge badge-live">Explorable now</span>
+        </article>
+        <article class="world reveal" style="--w1:#2e2a52; --w2:#8d8ad6;">
+          <div class="world-art world-castle" aria-hidden="true"></div>
+          <h3>The Castle Realm</h3>
+          <p>Four towers, a great hall, a library of stories, and friends who live within the walls.</p>
+          <span class="badge badge-live">Explorable now</span>
+        </article>
+        <article class="world reveal" style="--w1:#11304a; --w2:#7fd4f0;">
+          <div class="world-art world-crystal" aria-hidden="true"></div>
+          <h3>Crystal Mountains</h3>
+          <p>Massive peaks of living crystal that hum when you listen closely.</p>
+          <span class="badge">Coming someday</span>
+        </article>
+        <article class="world reveal" style="--w1:#3a1f3f; --w2:#e06a8a;">
+          <div class="world-art world-dragon" aria-hidden="true"></div>
+          <h3>Dragon Isles</h3>
+          <p>Floating islands wreathed in cloud, where the dragons are said to nest.</p>
+          <span class="badge">Coming someday</span>
+        </article>
+      </div>
+    </section>
+
+    <!-- ============ CLASSES ============ -->
+    <section class="section" id="classes">
+      <h2 class="section-title">Choose Your <em>Path</em></h2>
+      <p class="section-sub">Every adventurer grows into their own kind of magic.</p>
+      <div class="grid grid-5">
+        <article class="class-card reveal"><div class="class-emblem">🧙</div><h3>Wizard</h3><p>Master of the wand. Breaks the unbreakable, builds the unbuildable.</p><span class="pixel stat">SPECIALTY: SPELLWORK</span></article>
+        <article class="class-card reveal"><div class="class-emblem">🔮</div><h3>Witch</h3><p>Reads the wind and the willows. Finds treasure others walk past.</p><span class="pixel stat">SPECIALTY: SECRETS</span></article>
+        <article class="class-card reveal"><div class="class-emblem">⚗️</div><h3>Alchemist</h3><p>Turns pumpkins into juice and carrots into courage.</p><span class="pixel stat">SPECIALTY: BREWS</span></article>
+        <article class="class-card reveal"><div class="class-emblem">🦊</div><h3>Beast Tamer</h3><p>Friend to mermaids, elves, and every creature yet to come.</p><span class="pixel stat">SPECIALTY: CREATURES</span></article>
+        <article class="class-card reveal"><div class="class-emblem">✨</div><h3>Enchanter</h3><p>Decorates the world with lanterns, blossoms and rainbow blocks.</p><span class="pixel stat">SPECIALTY: WONDER</span></article>
+      </div>
+    </section>
+
+    <!-- ============ CREATURES ============ -->
+    <section class="section" id="creatures">
+      <h2 class="section-title">Creatures of the <em>Realm</em></h2>
+      <p class="section-sub">Some you can meet today. Some are still legends.</p>
+      <div class="grid grid-3">
+        <article class="creature reveal"><div class="creature-art" style="--c:#4ab8a8">🧜‍♀️</div><h3>Mermaid</h3><p>Marina bobs in the shallows and trades gossip with the tide.</p><span class="rarity r-rare">★ ★ ★ Rare — in game now</span></article>
+        <article class="creature reveal"><div class="creature-art" style="--c:#d9c9a8">🧝</div><h3>House Elf</h3><p>Pip follows you anywhere and obeys two commands: follow, and stay.</p><span class="rarity r-rare">★ ★ ★ Rare — in game now</span></article>
+        <article class="creature reveal"><div class="creature-art" style="--c:#e06a6a">🐲</div><h3>Dragon</h3><p>Keepers of the floating isles. Nobody has tamed one. Yet.</p><span class="rarity r-myth">★ ★ ★ ★ ★ Mythic — legend</span></article>
+        <article class="creature reveal"><div class="creature-art" style="--c:#f0a04a">🦅</div><h3>Phoenix</h3><p>Burns bright, never burns out. Seen once above the Crystal Mountains.</p><span class="rarity r-myth">★ ★ ★ ★ ★ Mythic — legend</span></article>
+        <article class="creature reveal"><div class="creature-art" style="--c:#f7c6d9">🦄</div><h3>Unicorn</h3><p>Leaves blossom blocks wherever it walks. Allegedly.</p><span class="rarity r-epic">★ ★ ★ ★ Epic — legend</span></article>
+        <article class="creature reveal"><div class="creature-art" style="--c:#bcd9f7">🐺</div><h3>Moon Wolf</h3><p>Howls only when the lanterns glow. A future friend, we hope.</p><span class="rarity r-epic">★ ★ ★ ★ Epic — legend</span></article>
+      </div>
+    </section>
+
+    <!-- ============ SPELLBOOK ============ -->
+    <section class="section" id="spellbook">
+      <h2 class="section-title">The <em>Spellbook</em></h2>
+      <p class="section-sub">Turn the pages. Choose your favorite.</p>
+      <div class="book reveal" id="book">
+        <button class="book-arrow" id="page-prev" aria-label="Previous page">‹</button>
+        <div class="book-page" id="book-page" aria-live="polite"></div>
+        <button class="book-arrow" id="page-next" aria-label="Next page">›</button>
+      </div>
+    </section>
+
+    <!-- ============ GALLERY ============ -->
+    <section class="section" id="gallery">
+      <h2 class="section-title">From the <em>Realm</em></h2>
+      <p class="section-sub">Postcards from PrishCraft. Tap to enlarge.</p>
+      <div class="grid grid-3 gallery">
+        <button class="shot reveal" data-title="The Great Hall" style="--g1:#2e2a52;--g2:#8d8ad6"><span>🏰</span><b>The Great Hall</b></button>
+        <button class="shot reveal" data-title="Whomping Willow" style="--g1:#1c3f2e;--g2:#6ec46e"><span>🌳</span><b>Whomping Willow</b></button>
+        <button class="shot reveal" data-title="The Spawn Village" style="--g1:#4a3520;--g2:#e0a85f"><span>🏘️</span><b>The Spawn Village</b></button>
+        <button class="shot reveal" data-title="Broom Flight at Dusk" style="--g1:#11304a;--g2:#e06a8a"><span>🧹</span><b>Broom Flight at Dusk</b></button>
+        <button class="shot reveal" data-title="The Stone Ring" style="--g1:#3a3a4e;--g2:#f0a6e8"><span>🌀</span><b>The Stone Ring</b></button>
+        <button class="shot reveal" data-title="Treasure!" style="--g1:#4a3520;--g2:#ffd24a"><span>🎁</span><b>Treasure!</b></button>
+      </div>
+    </section>
+
+    <!-- ============ COMMUNITY ============ -->
+    <section class="section" id="community">
+      <h2 class="section-title">The <em>Fellowship</em></h2>
+      <p class="section-sub">PrishCraft grows by family wishlist. Latest wishes granted:</p>
+      <div class="grid grid-3">
+        <article class="card reveal"><div class="card-icon">🏗️</div><h3>Player Creations</h3><p>Every island is someone's kingdom. Build yours and show the family.</p></article>
+        <article class="card reveal"><div class="card-icon">📜</div><h3>Weekly Challenges</h3><p>"Build a dragon nest." "Find 10 chests." New family quests every week.</p></article>
+        <article class="card reveal"><div class="card-icon">🦉</div><h3>Wishlist Magic</h3><p>Players ask, the workshop builds. The village, chests, and brooms all began as wishes.</p></article>
+      </div>
+    </section>
+
+    <!-- ============ PLAY ============ -->
+    <section class="section play-band" id="play">
+      <h2 class="section-title">Play <em>Anywhere</em></h2>
+      <p class="section-sub">No downloads. No accounts. Your island saves itself on your device.</p>
+      <div class="play-buttons">
+        <a class="btn btn-gold btn-big spell-btn" href="/play/">🖥️ Play on Computer</a>
+        <a class="btn btn-gold btn-big spell-btn" href="/play/">📱 Play on Tablet</a>
+      </div>
+      <p class="pixel hero-note">WORKS IN ANY MODERN BROWSER</p>
+    </section>
+
+    <!-- ============ NEWSLETTER ============ -->
+    <section class="section" id="newsletter">
+      <div class="owl-card reveal">
+        <h2 class="section-title">Owl <em>Post</em></h2>
+        <p class="section-sub">Hear about new realms, creatures, and spells the moment they land.</p>
+        <form id="owl-form">
+          <label class="visually-hidden" for="owl-email">Email address</label>
+          <input id="owl-email" type="email" required placeholder="you@somewhere.magical" />
+          <button class="btn btn-gold spell-btn" type="submit">Send the Owl 🦉</button>
+        </form>
+        <p id="owl-confirm" hidden>🦉 An owl is on its way! (It knows where to find us.)</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-grid">
+      <div>
+        <p class="nav-logo">✦ PrishCraft</p>
+        <p class="footer-tag">A magical voxel adventure made with love (and a lot of wishlists).</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="#features">About</a>
+        <a href="mailto:tech@eazeaccounts.com">Contact</a>
+        <a href="#" aria-disabled="true">Privacy Policy</a>
+        <a href="#" aria-disabled="true">Terms of Service</a>
+        <a href="https://github.com/shanusandeep/prishcraft">GitHub</a>
+      </nav>
+    </div>
+    <p class="pixel footer-note">© 2026 THE PRISHCRAFT FAMILY WORKSHOP · BUILD · CAST · EXPLORE</p>
+  </footer>
+
+  <dialog id="lightbox">
+    <div class="lightbox-art" id="lightbox-art"><span id="lightbox-emoji"></span></div>
+    <p id="lightbox-title"></p>
+    <button class="btn btn-ghost" id="lightbox-close">Close ✕</button>
+  </dialog>
+
+  <dialog id="trailer">
+    <div class="trailer-card">
+      <p class="trailer-stars">✨ 🎬 ✨</p>
+      <h3>The trailer is still being filmed…</h3>
+      <p>…by two directors aged 6 and 11. Until the premiere, the game itself loads faster than any trailer:</p>
+      <a class="btn btn-gold spell-btn" href="/play/">⚡ Play Now</a>
+      <button class="btn btn-ghost" id="trailer-close">Maybe later</button>
+    </div>
+  </dialog>
+
+  <script src="main.js" defer></script>
+</body>
+</html>
