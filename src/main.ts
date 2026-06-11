@@ -2,7 +2,7 @@ import './style.css';
 import * as THREE from 'three';
 import { AIR, BLOCKS, WATER, VINE, CARROT, PUMPKIN, CHEST, CRYSTAL, TIMBER, LANTERN, BLOSSOM, BED, isSolid } from './blocks';
 import { World } from './world';
-import { generateIsland, findSpawn, buildIslandPortal, floraPass, cropsPass, treasurePass, villagePlots, burrowSpot, Gate } from './terrain';
+import { generateIsland, findSpawn, buildIslandPortal, floraPass, cropsPass, treasurePass, renovateVillage, villagePlots, burrowSpot, Gate } from './terrain';
 import { Elf, Mermaid, findMermaidSpot } from './creatures';
 import {
   generateCastleRealm, CASTLE_GATE, CASTLE_SPAWN,
@@ -130,6 +130,12 @@ let spawn = findSpawn(island);
 floraPass(island, Math.round(3 * island.sizeX / 64), nearGate); // tufts + willows (old saves too)
 cropsPass(island, nearGate); // carrot & pumpkin fields
 treasurePass(island, spawn, nearGate); // spawn village + hidden chests
+if ((state.villageV ?? 0) < 1) {
+  // old saves get the renovation crew: bigger houses, real furniture
+  renovateVillage(island, spawn, nearGate);
+  state.villageV = 1; // islandEncDirty starts true, so the next save picks this up
+  window.setTimeout(() => ui.toast('🏗️ The village got a renovation — BIGGER houses with real beds, tables, and bathrooms!'), 2500);
+}
 
 let castle: World | null = null;
 if (saved?.castleWorld) {
@@ -955,6 +961,36 @@ function updateDrainFX(tier: number): void {
   if (tier > 0) el.classList.add(`drain-${tier}`);
 }
 
+/** The ⚔️ button: whack the nearest enemy — no aiming needed (tablet-friendly). */
+function autoAttack(): void {
+  if (state.peaceful) return;
+  let best: import('./enemies').Enemy | null = null;
+  let bestDist = reach() + 2;
+  for (const enemy of enemies.enemies) {
+    if (enemy.dead) continue;
+    const d = enemy.pos.distanceTo(player.pos);
+    if (d < bestDist) {
+      best = enemy;
+      bestDist = d;
+    }
+  }
+  if (!best) {
+    doBreak(); // no enemy nearby — behave like a normal whack
+    return;
+  }
+  const dmg = state.items.wand ? 2 : 1;
+  best.hit(dmg, player.pos);
+  particles.burst(best.pos.x, best.pos.y + 1, best.pos.z, 0xffffff, 6);
+}
+
+function nearestEnemyDist(): number {
+  let d = 99;
+  for (const enemy of enemies.enemies) {
+    if (!enemy.dead) d = Math.min(d, enemy.pos.distanceTo(player.pos));
+  }
+  return d;
+}
+
 function patronus(): void {
   if (!state.items.patronus) {
     ui.toast('You need the Patronus Charm — check the crafting bag 🎒');
@@ -1342,6 +1378,7 @@ if (touch) {
     talk,
     fly: toggleFly,
     patronus,
+    fight: autoAttack,
   });
 }
 
@@ -1423,7 +1460,10 @@ function frame(): void {
   checkWillowWhomp(dt);
   updateCampaign(dt);
   updateDuel(dt);
-  if (touch) ui.setPatronusVisible(state.items.patronus && (state.level ?? 1) >= 8);
+  if (touch) {
+    ui.setPatronusVisible(state.items.patronus && (state.level ?? 1) >= 8);
+    ui.setFightVisible(!state.peaceful && nearestEnemyDist() < 12);
+  }
   checkPortals();
   portalSparkle(dt);
   updateCamera(dt);

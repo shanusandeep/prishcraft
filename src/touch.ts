@@ -15,7 +15,7 @@ export class TouchControls {
 
   constructor(
     controls: Controls,
-    actions: { break: () => void; place: () => void; talk: () => void; fly: () => void; patronus: () => void },
+    actions: { break: () => void; place: () => void; talk: () => void; fly: () => void; patronus: () => void; fight: () => void },
   ) {
     const ui = document.getElementById('touch-ui')!;
     ui.hidden = false;
@@ -88,6 +88,7 @@ export class TouchControls {
     };
     hold('btn-break', actions.break);
     hold('btn-place', actions.place);
+    hold('btn-fight', actions.fight); // hold to keep whacking!
 
     const jumpBtn = document.getElementById('btn-jump')!;
     jumpBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); this.jump = true; });

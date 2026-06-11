@@ -317,6 +317,10 @@ export class UI {
     document.getElementById('btn-patronus')!.hidden = !on;
   }
 
+  setFightVisible(on: boolean): void {
+    document.getElementById('btn-fight')!.hidden = !on;
+  }
+
   setPeacefulBox(on: boolean): void {
     (document.getElementById('peaceful-box') as HTMLInputElement).checked = on;
   }

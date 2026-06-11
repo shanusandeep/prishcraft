@@ -37,6 +37,8 @@ export interface GameState {
   castleVisited?: boolean;
   /** Pip is held by the Death Eaters (level 9) */
   pipKidnapped?: boolean;
+  /** village architecture version (bumps trigger a renovation on old saves) */
+  villageV?: number;
 }
 
 export const MAX_HEALTH = 10;
@@ -115,6 +117,7 @@ export function defaultState(): GameState {
     peaceful: false,
     castleVisited: false,
     pipKidnapped: false,
+    villageV: 1,
   };
 }
 

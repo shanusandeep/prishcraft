@@ -283,8 +283,9 @@ function fillBox(world: World, x1: number, y1: number, z1: number, x2: number, y
 export type DoorSide = 'E' | 'W' | 'N' | 'S';
 
 /**
- * A proper wizard family home: 7x7, TWO stories, an underground basement,
- * furniture everywhere — and a real bathroom (toilet, sink, shower).
+ * A BIG wizard family home: 9x9, two tall stories, an underground basement,
+ * a real dining set, 2-block beds with side tables, rugs, paintings,
+ * bookshelves — and a proper glass-walled bathroom.
  */
 export function cottage(
   world: World,
@@ -294,85 +295,107 @@ export function cottage(
   baseY: number,
   wall = PLANK,
 ): void {
-  const x1 = x0 + 6, z1 = z0 + 6;
-  fillBox(world, x0 - 1, baseY + 1, z0 - 1, x1 + 1, baseY + 14, z1 + 1, AIR); // clear the plot
+  const x1 = x0 + 8, z1 = z0 + 8;
+  const ROSE = 29, MINT = 27;
+  fillBox(world, x0 - 1, baseY + 1, z0 - 1, x1 + 1, baseY + 16, z1 + 1, AIR); // clear the plot
 
-  // ---- basement: storage room dug below the house ----
+  // ---- basement: big storage room dug below the house ----
   fillBox(world, x0 + 1, baseY - 4, z0 + 1, x1 - 1, baseY - 4, z1 - 1, PLANK); // floor
   fillBox(world, x0 + 1, baseY - 3, z0 + 1, x1 - 1, baseY - 1, z1 - 1, AIR); // room
   world.set(x0 + 1, baseY - 3, z1 - 1, CHEST);
+  world.set(x0 + 2, baseY - 3, z1 - 1, CHEST);
   world.set(x1 - 1, baseY - 3, z1 - 1, PUMPKIN);
-  world.set(x0 + 1, baseY - 1, z0 + 3, LANTERN_ID);
+  world.set(x1 - 1, baseY - 3, z1 - 2, PUMPKIN);
+  world.set(x0 + 1, baseY - 1, z0 + 4, LANTERN_ID);
+  world.set(x1 - 1, baseY - 1, z0 + 4, LANTERN_ID);
   // climbing blocks back up the shaft
   world.set(x0 + 2, baseY - 3, z0 + 1, PLANK);
   world.set(x0 + 1, baseY - 2, z0 + 1, PLANK);
 
-  // ---- ground floor ----
+  // ---- ground floor (walls 5 tall — roomy!) ----
   fillBox(world, x0, baseY, z0, x1, baseY, z1, PLANK); // floor
+  fillBox(world, x0 + 3, baseY, z0 + 3, x1 - 3, baseY, z1 - 3, ROSE); // a cozy rug
   world.set(x0 + 1, baseY, z0 + 2, AIR); // basement hatch (hop down!)
-  fillBox(world, x0, baseY + 1, z0, x1, baseY + 4, z1, wall); // walls
-  fillBox(world, x0 + 1, baseY + 1, z0 + 1, x1 - 1, baseY + 4, z1 - 1, AIR); // hollow
+  fillBox(world, x0, baseY + 1, z0, x1, baseY + 5, z1, wall); // walls
+  fillBox(world, x0 + 1, baseY + 1, z0 + 1, x1 - 1, baseY + 5, z1 - 1, AIR); // hollow
   for (const [cx, cz] of [[x0, z0], [x1, z0], [x0, z1], [x1, z1]] as const) {
-    fillBox(world, cx, baseY + 1, cz, cx, baseY + 9, cz, TIMBER_ID); // tall corner posts
+    fillBox(world, cx, baseY + 1, cz, cx, baseY + 11, cz, TIMBER_ID); // tall corner posts
   }
-  // living room: table, chairs, bookshelf, painting, lantern
-  world.set(x0 + 3, baseY + 1, z0 + 3, PLANK);
+  // dining room: a REAL table (2x2) with feast spread and four chairs
+  fillBox(world, x0 + 3, baseY + 1, z0 + 3, x0 + 4, baseY + 1, z0 + 4, PLANK);
   world.set(x0 + 3, baseY + 2, z0 + 3, FEAST);
+  world.set(x0 + 4, baseY + 2, z0 + 4, FEAST);
   world.set(x0 + 2, baseY + 1, z0 + 3, CHAIR);
-  world.set(x0 + 4, baseY + 1, z0 + 3, CHAIR);
-  world.set(x0 + 1, baseY + 1, z1 - 1, BOOKSHELF_ID);
-  world.set(x0 + 1, baseY + 2, z1 - 1, BOOKSHELF_ID);
-  world.set(x0 + 3, baseY + 3, z1 - 1, PAINTING);
-  world.set(x0 + 3, baseY + 4, z0 + 3, LANTERN_ID);
-  // stairs up along the east wall
-  world.set(x1 - 1, baseY + 1, z1 - 1, PLANK);
-  world.set(x1 - 1, baseY + 2, z1 - 2, PLANK);
-  world.set(x1 - 1, baseY + 3, z1 - 3, PLANK);
-  world.set(x1 - 1, baseY + 4, z1 - 4, PLANK);
+  world.set(x0 + 5, baseY + 1, z0 + 4, CHAIR);
+  world.set(x0 + 3, baseY + 1, z0 + 2, CHAIR);
+  world.set(x0 + 4, baseY + 1, z0 + 5, CHAIR);
+  // library wall + art + lights
+  fillBox(world, x0 + 1, baseY + 1, z1 - 1, x0 + 3, baseY + 2, z1 - 1, BOOKSHELF_ID);
+  world.set(x0 + 5, baseY + 3, z1 - 1, PAINTING);
+  world.set(x0 + 2, baseY + 3, z0 + 1, PAINTING);
+  world.set(x0 + 4, baseY + 5, z0 + 4, LANTERN_ID);
+  world.set(x1 - 1, baseY + 1, z0 + 1, PUMPKIN); // kitchen corner
+  world.set(x1 - 2, baseY + 1, z0 + 1, FEAST);
+  // stairs up along the east wall (5 steps for the taller floor)
+  for (let s = 0; s < 5; s++) world.set(x1 - 1, baseY + 1 + s, z1 - 1 - s, PLANK);
 
   // ---- second floor ----
-  fillBox(world, x0, baseY + 5, z0, x1, baseY + 5, z1, PLANK); // floor
-  fillBox(world, x1 - 1, baseY + 5, z1 - 6, x1 - 1, baseY + 5, z1 - 5, AIR); // stair opening
-  fillBox(world, x0, baseY + 6, z0, x1, baseY + 9, z1, wall); // walls
-  fillBox(world, x0 + 1, baseY + 6, z0 + 1, x1 - 1, baseY + 9, z1 - 1, AIR); // hollow
-  // bedroom: two beds with side tables and a lantern
-  world.set(x0 + 1, baseY + 6, z0 + 1, BED);
-  world.set(x0 + 1, baseY + 6, z0 + 3, BED);
-  world.set(x0 + 1, baseY + 6, z0 + 2, PLANK);
-  world.set(x0 + 1, baseY + 7, z0 + 2, LANTERN_ID);
-  world.set(x0 + 2, baseY + 8, z0 + 1, PAINTING);
-  world.set(x0 + 1, baseY + 6, z1 - 1, CHEST);
-  // the BATHROOM (very important): toilet, sink, shower behind glass
-  world.set(x1 - 1, baseY + 6, z0 + 1, TOILET);
-  world.set(x1 - 2, baseY + 6, z0 + 1, SINK);
-  world.set(x1 - 1, baseY + 6, z0 + 2, SHOWER);
+  fillBox(world, x0, baseY + 6, z0, x1, baseY + 6, z1, PLANK); // floor
+  fillBox(world, x0 + 3, baseY + 6, z0 + 4, x1 - 3, baseY + 6, z1 - 3, MINT); // bedroom rug
+  fillBox(world, x1 - 1, baseY + 6, z1 - 7, x1 - 1, baseY + 6, z1 - 5, AIR); // stair opening
+  fillBox(world, x0, baseY + 7, z0, x1, baseY + 11, z1, wall); // walls
+  fillBox(world, x0 + 1, baseY + 7, z0 + 1, x1 - 1, baseY + 11, z1 - 1, AIR); // hollow
+  // bedroom: THREE proper 2-block beds, side tables, lanterns
+  for (const bz of [z0 + 1, z0 + 4, z0 + 7] as const) {
+    world.set(x0 + 1, baseY + 7, bz, BED);
+    world.set(x0 + 2, baseY + 7, bz, BED);
+    if (bz !== z0 + 7) {
+      world.set(x0 + 1, baseY + 7, bz + 1, PLANK); // side table
+      world.set(x0 + 1, baseY + 8, bz + 1, LANTERN_ID);
+    }
+  }
+  world.set(x0 + 4, baseY + 9, z0 + 1, PAINTING);
+  world.set(x0 + 1, baseY + 7, z1 - 1, CHEST);
+  world.set(x0 + 4, baseY + 11, z0 + 4, LANTERN_ID);
+  // the BATHROOM (very important): toilet, sink, double shower behind glass
+  world.set(x1 - 1, baseY + 7, z0 + 1, TOILET);
+  world.set(x1 - 2, baseY + 7, z0 + 1, SINK);
   world.set(x1 - 1, baseY + 7, z0 + 2, SHOWER);
-  fillBox(world, x1 - 3, baseY + 6, z0 + 1, x1 - 3, baseY + 7, z0 + 2, GLASS);
-  fillBox(world, x1 - 2, baseY + 6, z0 + 3, x1 - 1, baseY + 7, z0 + 3, GLASS);
-  world.set(x1 - 2, baseY + 6, z0 + 3, AIR); // bathroom doorway
+  world.set(x1 - 1, baseY + 8, z0 + 2, SHOWER);
+  world.set(x1 - 1, baseY + 7, z0 + 3, SHOWER);
+  fillBox(world, x1 - 3, baseY + 7, z0 + 1, x1 - 3, baseY + 9, z0 + 3, GLASS);
+  fillBox(world, x1 - 2, baseY + 7, z0 + 4, x1 - 1, baseY + 9, z0 + 4, GLASS);
+  world.set(x1 - 2, baseY + 7, z0 + 4, AIR); // bathroom doorway
 
-  // windows on both floors (skip the door wall downstairs)
-  if (doorSide !== 'N') { world.set(x0 + 2, baseY + 2, z0, CRYSTAL_ID); world.set(x0 + 3, baseY + 7, z0, CRYSTAL_ID); }
-  if (doorSide !== 'S') { world.set(x0 + 3, baseY + 2, z1, CRYSTAL_ID); world.set(x0 + 3, baseY + 7, z1, CRYSTAL_ID); }
-  if (doorSide !== 'W') { world.set(x0, baseY + 2, z0 + 3, CRYSTAL_ID); world.set(x0, baseY + 7, z0 + 3, CRYSTAL_ID); }
-  if (doorSide !== 'E') { world.set(x1, baseY + 2, z0 + 3, CRYSTAL_ID); world.set(x1, baseY + 7, z0 + 3, CRYSTAL_ID); }
+  // windows on both floors, two per wall (skip the door wall downstairs)
+  for (const wx of [x0 + 2, x1 - 2] as const) {
+    if (doorSide !== 'N') { world.set(wx, baseY + 2, z0, CRYSTAL_ID); world.set(wx, baseY + 3, z0, CRYSTAL_ID); world.set(wx, baseY + 8, z0, CRYSTAL_ID); }
+    if (doorSide !== 'S') { world.set(wx, baseY + 2, z1, CRYSTAL_ID); world.set(wx, baseY + 3, z1, CRYSTAL_ID); world.set(wx, baseY + 8, z1, CRYSTAL_ID); }
+  }
+  for (const wz of [z0 + 2, z1 - 2] as const) {
+    if (doorSide !== 'W') { world.set(x0, baseY + 2, wz, CRYSTAL_ID); world.set(x0, baseY + 3, wz, CRYSTAL_ID); world.set(x0, baseY + 8, wz, CRYSTAL_ID); }
+    if (doorSide !== 'E') { world.set(x1, baseY + 2, wz, CRYSTAL_ID); world.set(x1, baseY + 3, wz, CRYSTAL_ID); world.set(x1, baseY + 8, wz, CRYSTAL_ID); }
+  }
 
   // stepped roof
-  fillBox(world, x0 - 1, baseY + 10, z0 - 1, x1 + 1, baseY + 10, z1 + 1, ROOF);
-  fillBox(world, x0, baseY + 11, z0, x1, baseY + 11, z1, ROOF);
-  fillBox(world, x0 + 2, baseY + 12, z0 + 2, x1 - 2, baseY + 12, z1 - 2, ROOF);
+  fillBox(world, x0 - 1, baseY + 12, z0 - 1, x1 + 1, baseY + 12, z1 + 1, ROOF);
+  fillBox(world, x0, baseY + 13, z0, x1, baseY + 13, z1, ROOF);
+  fillBox(world, x0 + 2, baseY + 14, z0 + 2, x1 - 2, baseY + 14, z1 - 2, ROOF);
+  fillBox(world, x0 + 4, baseY + 15, z0 + 4, x1 - 4, baseY + 15, z1 - 4, ROOF);
 
-  // the doorway (cleared last so nothing fills it back in)
-  if (doorSide === 'E') fillBox(world, x1, baseY + 1, z0 + 2, x1, baseY + 2, z0 + 3, AIR);
-  if (doorSide === 'W') fillBox(world, x0, baseY + 1, z0 + 2, x0, baseY + 2, z0 + 3, AIR);
-  if (doorSide === 'N') fillBox(world, x0 + 2, baseY + 1, z0, x0 + 3, baseY + 2, z0, AIR);
-  if (doorSide === 'S') fillBox(world, x0 + 2, baseY + 1, z1, x0 + 3, baseY + 2, z1, AIR);
-  // a pumpkin by the door
-  const pumpkinSpot: Record<DoorSide, [number, number]> = {
-    E: [x1 + 1, z0 + 1], W: [x0 - 1, z0 + 1], N: [x0 + 1, z0 - 1], S: [x0 + 1, z1 + 1],
+  // the doorway: 2 wide, 3 tall — grand! (cleared last)
+  if (doorSide === 'E') fillBox(world, x1, baseY + 1, z0 + 3, x1, baseY + 3, z0 + 4, AIR);
+  if (doorSide === 'W') fillBox(world, x0, baseY + 1, z0 + 3, x0, baseY + 3, z0 + 4, AIR);
+  if (doorSide === 'N') fillBox(world, x0 + 3, baseY + 1, z0, x0 + 4, baseY + 3, z0, AIR);
+  if (doorSide === 'S') fillBox(world, x0 + 3, baseY + 1, z1, x0 + 4, baseY + 3, z1, AIR);
+  // lanterns and a pumpkin by the door
+  const front: Record<DoorSide, [number, number, number, number]> = {
+    E: [x1 + 1, z0 + 2, x1 + 1, z0 + 5], W: [x0 - 1, z0 + 2, x0 - 1, z0 + 5],
+    N: [x0 + 2, z0 - 1, x0 + 5, z0 - 1], S: [x0 + 2, z1 + 1, x0 + 5, z1 + 1],
   };
-  const [px, pz] = pumpkinSpot[doorSide];
-  world.set(px, baseY + 1, pz, PUMPKIN);
+  const [lx1, lz1, lx2, lz2] = front[doorSide];
+  world.set(lx1, baseY + 1, lz1, LANTERN_ID);
+  world.set(lx2, baseY + 1, lz2, PUMPKIN);
 }
 
 /**
@@ -382,74 +405,88 @@ export function cottage(
 export function buildBurrow(world: World, bx: number, bz: number, baseY: number): void {
   const WALLS = [PLANK, 27, 29, 28]; // plank, mint, rose, sky
   const offs: Array<[number, number]> = [[0, 0], [1, 0], [0, 1], [-1, 0]];
-  fillBox(world, bx - 2, baseY + 1, bz - 2, bx + 8, baseY + 26, bz + 8, AIR);
+  fillBox(world, bx - 3, baseY + 1, bz - 3, bx + 10, baseY + 30, bz + 10, AIR);
 
   for (let floor = 0; floor < 4; floor++) {
     const fy = baseY + floor * 5;
     const ox = bx + offs[floor][0], oz = bz + offs[floor][1];
-    fillBox(world, ox, fy, oz, ox + 5, fy, oz + 5, PLANK); // floor slab
-    fillBox(world, ox, fy + 1, oz, ox + 5, fy + 4, oz + 5, WALLS[floor]); // walls
-    fillBox(world, ox + 1, fy + 1, oz + 1, ox + 4, fy + 4, oz + 4, AIR); // hollow
-    // window + lantern + a bed per floor
+    fillBox(world, ox, fy, oz, ox + 6, fy, oz + 6, PLANK); // floor slab (7x7 now)
+    fillBox(world, ox, fy + 1, oz, ox + 6, fy + 4, oz + 6, WALLS[floor]); // walls
+    fillBox(world, ox + 1, fy + 1, oz + 1, ox + 5, fy + 4, oz + 5, AIR); // hollow
+    // windows + lantern + proper 2-block beds
     world.set(ox, fy + 2, oz + 2, CRYSTAL_ID);
-    world.set(ox + 5, fy + 2, oz + 3, CRYSTAL_ID);
-    world.set(ox + 2, fy + 4, oz + 2, LANTERN_ID);
+    world.set(ox, fy + 3, oz + 2, CRYSTAL_ID);
+    world.set(ox + 6, fy + 2, oz + 4, CRYSTAL_ID);
+    world.set(ox + 6, fy + 3, oz + 4, CRYSTAL_ID);
+    world.set(ox + 3, fy + 4, oz + 3, LANTERN_ID);
     world.set(ox + 1, fy + 1, oz + 1, BED);
-    if (floor > 0) world.set(ox + 4, fy + 1, oz + 4, BED);
-    if (floor === 1) { // family room: table + chairs + painting
-      world.set(ox + 2, fy + 1, oz + 3, PLANK);
-      world.set(ox + 2, fy + 2, oz + 3, FEAST);
-      world.set(ox + 3, fy + 1, oz + 3, CHAIR);
-      world.set(ox + 2, fy + 3, oz + 4, PAINTING);
+    world.set(ox + 2, fy + 1, oz + 1, BED);
+    if (floor > 0) {
+      world.set(ox + 4, fy + 1, oz + 5, BED);
+      world.set(ox + 5, fy + 1, oz + 5, BED);
+      world.set(ox + 3, fy + 1, oz + 1, PLANK); // side table
+      world.set(ox + 3, fy + 2, oz + 1, LANTERN_ID);
     }
-    if (floor === 2) { // bathroom floor
-      world.set(ox + 4, fy + 1, oz + 1, TOILET);
-      world.set(ox + 3, fy + 1, oz + 1, SINK);
-      world.set(ox + 4, fy + 1, oz + 2, SHOWER);
+    if (floor === 1) { // family room: a real table, chairs, art
+      fillBox(world, ox + 2, fy + 1, oz + 3, ox + 3, fy + 1, oz + 3, PLANK);
+      world.set(ox + 2, fy + 2, oz + 3, FEAST);
+      world.set(ox + 3, fy + 2, oz + 3, FEAST);
+      world.set(ox + 1, fy + 1, oz + 3, CHAIR);
+      world.set(ox + 4, fy + 1, oz + 3, CHAIR);
+      world.set(ox + 2, fy + 3, oz + 5, PAINTING);
+      world.set(ox + 5, fy + 1, oz + 1, BOOKSHELF_ID);
+    }
+    if (floor === 2) { // the bathroom floor
+      world.set(ox + 5, fy + 1, oz + 1, TOILET);
+      world.set(ox + 4, fy + 1, oz + 1, SINK);
+      world.set(ox + 5, fy + 1, oz + 2, SHOWER);
+      world.set(ox + 5, fy + 2, oz + 2, SHOWER);
+      fillBox(world, ox + 4, fy + 1, oz + 3, ox + 5, fy + 2, oz + 3, GLASS);
     }
     // stairs up inside (alternating corner)
     if (floor < 3) {
-      const sx = floor % 2 === 0 ? ox + 4 : ox + 1;
+      const sx = floor % 2 === 0 ? ox + 5 : ox + 1;
       world.set(sx, fy + 1, oz + 2, PLANK);
       world.set(sx, fy + 2, oz + 3, PLANK);
       world.set(sx, fy + 3, oz + 4, PLANK);
-      world.set(sx, fy + 4, oz + 4, PLANK);
+      world.set(sx, fy + 4, oz + 5, PLANK);
       // opening in the floor above
+      world.set(sx, fy + 5, oz + 5, AIR);
       world.set(sx, fy + 5, oz + 4, AIR);
-      world.set(sx, fy + 5, oz + 3, AIR);
     }
   }
   // pointy roof + two crooked chimneys
   const top = baseY + 20;
-  fillBox(world, bx - 1, top, bz - 1, bx + 6, top, bz + 6, ROOF);
-  fillBox(world, bx, top + 1, bz, bx + 5, top + 1, bz + 5, ROOF);
-  fillBox(world, bx + 2, top + 2, bz + 2, bx + 3, top + 3, bz + 3, ROOF);
-  fillBox(world, bx, top + 1, bz, bx, top + 4, bz, BRICK);
-  fillBox(world, bx + 5, top + 1, bz + 5, bx + 5, top + 5, bz + 5, BRICK);
-  world.set(bx + 5, top + 6, bz + 5, LANTERN_ID);
-  // front door (south) + welcome pumpkins
-  fillBox(world, bx + 2, baseY + 1, bz, bx + 3, baseY + 2, bz, AIR);
-  world.set(bx + 1, baseY + 1, bz - 1, PUMPKIN);
-  world.set(bx + 4, baseY + 1, bz - 1, PUMPKIN);
+  fillBox(world, bx - 2, top, bz - 2, bx + 8, top, bz + 8, ROOF);
+  fillBox(world, bx - 1, top + 1, bz - 1, bx + 7, top + 1, bz + 7, ROOF);
+  fillBox(world, bx + 1, top + 2, bz + 1, bx + 5, top + 2, bz + 5, ROOF);
+  fillBox(world, bx + 3, top + 3, bz + 3, bx + 4, top + 3, bz + 4, ROOF);
+  fillBox(world, bx, top + 1, bz, bx, top + 5, bz, BRICK);
+  fillBox(world, bx + 6, top + 1, bz + 6, bx + 6, top + 6, bz + 6, BRICK);
+  world.set(bx + 6, top + 7, bz + 6, LANTERN_ID);
+  // grand front door (south) + welcome lanterns and pumpkins
+  fillBox(world, bx + 2, baseY + 1, bz, bx + 4, baseY + 3, bz, AIR);
+  world.set(bx + 1, baseY + 1, bz - 1, LANTERN_ID);
+  world.set(bx + 5, baseY + 1, bz - 1, PUMPKIN);
 }
 
-/** The eight family-cottage plots, spaced for the 7x7 two-story houses. */
+/** The eight family-cottage plots, spaced for the BIG 9x9 two-story houses. */
 export function villagePlots(sx: number, sz: number): Array<{ x: number; z: number; door: DoorSide }> {
   return [
     { x: sx + 8, z: sz + 3, door: 'N' },
-    { x: sx + 18, z: sz + 3, door: 'N' },
-    { x: sx - 15, z: sz + 3, door: 'N' },
-    { x: sx - 25, z: sz + 3, door: 'N' },
-    { x: sx + 8, z: sz - 10, door: 'S' },
-    { x: sx + 18, z: sz - 10, door: 'S' },
-    { x: sx - 15, z: sz - 10, door: 'S' },
-    { x: sx - 25, z: sz - 10, door: 'S' },
+    { x: sx + 20, z: sz + 3, door: 'N' },
+    { x: sx - 17, z: sz + 3, door: 'N' },
+    { x: sx - 29, z: sz + 3, door: 'N' },
+    { x: sx + 8, z: sz - 12, door: 'S' },
+    { x: sx + 20, z: sz - 12, door: 'S' },
+    { x: sx - 17, z: sz - 12, door: 'S' },
+    { x: sx - 29, z: sz - 12, door: 'S' },
   ];
 }
 
 /** Where the Burrow stands, off the village's south-east corner. */
 export function burrowSpot(sx: number, sz: number): { x: number; z: number } {
-  return { x: sx + 16, z: sz - 24 };
+  return { x: sx + 17, z: sz - 28 };
 }
 
 /**
@@ -465,7 +502,40 @@ export function treasurePass(
   avoid: (x: number, z: number) => boolean,
 ): void {
   if (world.data.includes(CHEST)) return;
+  renovateVillage(world, spawn, avoid);
+  scatterChests(world, spawn, avoid);
+}
+
+/** Chests hidden across every island (separate so renovations don't re-scatter). */
+export function scatterChests(
+  world: World,
+  spawn: { x: number; z: number },
+  avoid: (x: number, z: number) => boolean,
+): void {
   const S = world.sizeX;
+  const sx = Math.floor(spawn.x), sz = Math.floor(spawn.z);
+  const target = Math.round(((S * S) / (64 * 64)) * 0.8) + 4;
+  for (let i = 0, placed = 0; i < target * 30 && placed < target; i++) {
+    const x = 3 + Math.floor(Math.random() * (S - 6));
+    const z = 3 + Math.floor(Math.random() * (S - 6));
+    if (avoid(x, z) || Math.hypot(x - sx, z - sz) < 36) continue;
+    const y = world.surfaceY(x, z);
+    if (y <= WATER_Y || world.get(x, y + 1, z) !== AIR) continue;
+    world.set(x, y + 1, z, CHEST);
+    placed++;
+  }
+}
+
+/**
+ * Builds (or REBUILDS) the whole spawn village with the big 9x9 houses.
+ * Also used to renovate villages on old saves — it clears the housing
+ * bands first so no slivers of the old small cottages remain.
+ */
+export function renovateVillage(
+  world: World,
+  spawn: { x: number; z: number },
+  avoid: (x: number, z: number) => boolean,
+): void {
   const sx = Math.floor(spawn.x), sz = Math.floor(spawn.z);
   const h = world.surfaceY(sx, sz);
   const COZY = [PLANK, 27, 28, 29]; // cottage wall palettes
@@ -496,32 +566,37 @@ export function treasurePass(
   world.set(wx + 1, h + 2, wz + 1, LANTERN_ID);
 
   // ---- streets ----
+  // demolition first: clear the housing bands so old small cottages
+  // (from saves made before the renovation) leave no slivers behind
+  flatten(sx - 31, sz + 2, sx + 31, sz + 13);
+  flatten(sx - 31, sz - 14, sx + 31, sz - 3);
+
   const street = (x1: number, z1: number, x2: number, z2: number) => flatten(x1, z1, x2, z2, PLANK);
-  street(sx + 6, sz - 1, sx + 22, sz);
-  street(sx - 22, sz - 1, sx - 6, sz);
-  street(sx - 1, sz + 6, sx, sz + 22);
-  street(sx - 1, sz - 22, sx, sz - 6);
+  street(sx + 6, sz - 1, sx + 31, sz);
+  street(sx - 31, sz - 1, sx - 6, sz);
+  street(sx - 1, sz + 6, sx, sz + 24);
+  street(sx - 1, sz - 24, sx, sz - 6);
 
   // lamp posts at the street ends and plaza corners
   for (const [lx, lz] of [
-    [sx + 22, sz + 1], [sx - 22, sz + 1], [sx + 1, sz + 22], [sx + 1, sz - 22],
+    [sx + 31, sz + 1], [sx - 31, sz + 1], [sx + 1, sz + 24], [sx + 1, sz - 24],
     [sx - 5, sz - 5], [sx + 5, sz + 5],
   ] as const) {
     world.set(lx, h + 1, lz, TIMBER_ID);
     world.set(lx, h + 2, lz, LANTERN_ID);
   }
 
-  // ---- eight family cottages along the streets (7x7, two-story) ----
+  // ---- eight family cottages along the streets (9x9, two-story) ----
   const plots = villagePlots(sx, sz);
   plots.forEach((plot, i) => {
-    if (avoid(plot.x + 3, plot.z + 3)) return;
-    flatten(plot.x - 1, plot.z - 1, plot.x + 7, plot.z + 7);
+    if (avoid(plot.x + 4, plot.z + 4)) return;
+    flatten(plot.x - 1, plot.z - 1, plot.x + 9, plot.z + 9);
     cottage(world, plot.x, plot.z, plot.door, h, COZY[i % COZY.length]);
   });
 
   // ---- the Burrow (the Weasleys' crooked tower) ----
   const bw = burrowSpot(sx, sz);
-  flatten(bw.x - 2, bw.z - 2, bw.x + 8, bw.z + 8);
+  flatten(bw.x - 3, bw.z - 3, bw.x + 10, bw.z + 10);
   buildBurrow(world, bw.x, bw.z, h);
 
   // ---- the village green: duel ring, feast tables, benches ----
@@ -574,17 +649,6 @@ export function treasurePass(
   world.set(sx - 4, h + 1, sz + 4, CHEST);
   world.set(sx + 24, h + 1, sz + 2, CHEST);
 
-  // ---- chests hidden across every island ----
-  const target = Math.round(((S * S) / (64 * 64)) * 0.8) + 4;
-  for (let i = 0, placed = 0; i < target * 30 && placed < target; i++) {
-    const x = 3 + Math.floor(Math.random() * (S - 6));
-    const z = 3 + Math.floor(Math.random() * (S - 6));
-    if (avoid(x, z) || Math.hypot(x - sx, z - sz) < 28) continue;
-    const y = world.surfaceY(x, z);
-    if (y <= WATER_Y || world.get(x, y + 1, z) !== AIR) continue;
-    world.set(x, y + 1, z, CHEST);
-    placed++;
-  }
 }
 
 /**
