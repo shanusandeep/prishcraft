@@ -13,7 +13,7 @@ export function groundBelow(world: World, x: number, y: number, z: number): numb
   return -1;
 }
 
-function darken(color: number, f = 0.65): number {
+export function darken(color: number, f = 0.65): number {
   const r = ((color >> 16) & 255) * f;
   const g = ((color >> 8) & 255) * f;
   const b = (color & 255) * f;

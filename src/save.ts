@@ -11,6 +11,7 @@ export interface SaveData {
   islandSize?: number;
   islandWorld?: string; // base64 of run-length-encoded block data
   castleWorld?: string;
+  shadowWorld?: string;
   islandGate?: Gate;
   player?: { x: number; y: number; z: number };
   slot?: number;

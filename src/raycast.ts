@@ -6,6 +6,8 @@ export interface Hit {
   /** normal of the face that was hit (points toward the camera) */
   nx: number; ny: number; nz: number;
   id: number;
+  /** distance along the ray where the hit happened */
+  t: number;
 }
 
 /**
@@ -45,7 +47,7 @@ export function raycastVoxels(
       nx = 0; ny = 0; nz = -stepZ;
     }
     const id = world.get(x, y, z);
-    if (isTargetable(id)) return { x, y, z, nx, ny, nz, id };
+    if (isTargetable(id)) return { x, y, z, nx, ny, nz, id, t };
   }
   return null;
 }

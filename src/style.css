@@ -252,6 +252,46 @@ html, body {
   cursor: pointer;
 }
 
+/* ---------- Boss bar, peaceful, dementor drain ---------- */
+
+#bossbar {
+  position: absolute; left: 50%; top: 96px;
+  transform: translateX(-50%);
+  width: min(80vw, 420px);
+  text-align: center;
+}
+#boss-name {
+  color: #f2ecff; font-size: 15px; letter-spacing: 2px;
+  text-shadow: 0 2px 8px rgba(0,0,0,.8);
+}
+#boss-track {
+  height: 12px; margin-top: 4px;
+  border-radius: 999px;
+  background: rgba(20, 20, 40, 0.7);
+  border: 1px solid rgba(255,255,255,.3);
+  overflow: hidden;
+}
+#boss-fill {
+  height: 100%; width: 100%;
+  background: linear-gradient(90deg, #a44ae0, #e06a6a);
+  transition: width 0.25s;
+}
+
+#peaceful-row {
+  display: flex; align-items: center; gap: 8px;
+  justify-content: center;
+  margin: 4px 0 10px;
+  font-size: 14px;
+  color: var(--ink);
+  cursor: pointer;
+}
+#peaceful-row input { width: 18px; height: 18px; accent-color: var(--accent-dark); }
+
+#app canvas { transition: filter 0.6s; }
+#app canvas.drain-1 { filter: saturate(0.7) brightness(0.95); }
+#app canvas.drain-2 { filter: saturate(0.4) brightness(0.85); }
+#app canvas.drain-3 { filter: saturate(0.15) brightness(0.75); }
+
 /* ---------- Hearts & hurt flash ---------- */
 
 #hearts {

@@ -196,7 +196,7 @@ export function findMermaidSpot(world: World): { x: number; z: number } {
   return { x: 8.5, z: cz + 0.5 };
 }
 
-function lerpAngle(from: number, to: number, t: number): number {
+export function lerpAngle(from: number, to: number, t: number): number {
   let diff = to - from;
   while (diff > Math.PI) diff -= Math.PI * 2;
   while (diff < -Math.PI) diff += Math.PI * 2;

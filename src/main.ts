@@ -4,7 +4,12 @@ import { AIR, BLOCKS, WATER, VINE, CARROT, PUMPKIN, CHEST, CRYSTAL, TIMBER, LANT
 import { World } from './world';
 import { generateIsland, findSpawn, buildIslandPortal, floraPass, cropsPass, treasurePass, villagePlots, burrowSpot, Gate } from './terrain';
 import { Elf, Mermaid, findMermaidSpot } from './creatures';
-import { generateCastleRealm, CASTLE_GATE, CASTLE_SPAWN } from './castle';
+import {
+  generateCastleRealm, CASTLE_GATE, CASTLE_SPAWN,
+  generateShadowRealm, ensureShadowGate, CASTLE_SHADOW_GATE, SHADOW_RETURN_GATE, SHADOW_SPAWN,
+} from './castle';
+import { EnemyManager, EnemyKind, KINDS } from './enemies';
+import { LEVELS } from './levels';
 import { VoxelRenderer } from './mesher';
 import { createAtlas } from './textures';
 import { raycastVoxels } from './raycast';
@@ -94,6 +99,21 @@ const state = saved?.state ?? defaultState();
 // fields added after the first release — fill them in for old saves
 state.health = state.health ?? MAX_HEALTH;
 state.foods = state.foods ?? { juice: 0, brew: 0 };
+state.familyGifts = state.familyGifts ?? [];
+state.items.patronus = state.items.patronus ?? false;
+state.levelKills = state.levelKills ?? 0;
+state.peaceful = state.peaceful ?? false;
+state.castleVisited = state.castleVisited ?? !!saved?.castleWorld;
+let levelToastPending: string | null = null;
+if (state.level == null) {
+  // veterans who already finished the old quest line jump straight to the campaign
+  if (state.items.wand && state.items.broom && state.items.key && state.castleVisited) {
+    state.level = 2;
+    levelToastPending = '⚔️ NEW: the 10-level campaign begins! ' + LEVELS[2].intro;
+  } else {
+    state.level = 1;
+  }
+}
 let seed = saved?.seed ?? ((Math.random() * 2 ** 31) | 0);
 
 const avoidCastleFootprint = (x: number, z: number) => x >= 12 && x <= 52 && z >= 12 && z <= 52;
@@ -124,10 +144,32 @@ function getCastle(): World {
     generateCastleRealm(castle, seed + 1);
     floraPass(castle, 2, avoidCastleFootprint);
   }
+  if ((state.level ?? 1) >= 10) ensureShadowGate(castle);
   return castle;
 }
 
-let world = state.where === 'castle' ? getCastle() : island;
+let shadow: World | null = null;
+if (saved?.shadowWorld) {
+  shadow = new World();
+  if (!decodeWorldInto(shadow, saved.shadowWorld)) shadow = null;
+}
+function getShadow(): World {
+  if (!shadow) {
+    shadow = new World();
+    generateShadowRealm(shadow, seed + 2);
+  }
+  return shadow;
+}
+
+type Realm = 'island' | 'castle' | 'shadow';
+function realmWorld(realm: Realm): World {
+  return realm === 'island' ? island : realm === 'castle' ? getCastle() : getShadow();
+}
+function realmHome(realm: Realm): { x: number; y: number; z: number } {
+  return realm === 'island' ? spawn : realm === 'castle' ? CASTLE_SPAWN : SHADOW_SPAWN;
+}
+
+let world = realmWorld(state.where as Realm);
 
 // ---------- player / npcs / controls / ui ----------
 
@@ -224,18 +266,25 @@ scene.add(highlight);
 // ---------- saving ----------
 
 let saveTimer: number | undefined;
+let islandEncoded = '';
+let islandEncDirty = true; // re-encode the big island only when its blocks changed
 function markDirty(): void {
   window.clearTimeout(saveTimer);
   saveTimer = window.setTimeout(saveNow, 2500); // big worlds take a moment to encode
 }
 function saveNow(): void {
   state.timeOfDay = timeOfDay;
+  if (islandEncDirty || !islandEncoded) {
+    islandEncoded = encodeWorld(island);
+    islandEncDirty = false;
+  }
   writeSave({
     v: 2,
     seed,
     islandSize: island.sizeX,
-    islandWorld: encodeWorld(island),
+    islandWorld: islandEncoded,
     castleWorld: castle ? encodeWorld(castle) : undefined,
+    shadowWorld: shadow ? encodeWorld(shadow) : undefined,
     islandGate,
     player: { x: player.pos.x, y: player.pos.y, z: player.pos.z },
     slot: ui.selected,
@@ -261,15 +310,26 @@ function recipeGoal(recipe: Recipe): string {
 }
 
 function updateGoal(): void {
-  if (!state.items.wand) ui.setGoal(recipeGoal(RECIPES[0]));
-  else if (!state.items.broom) ui.setGoal(recipeGoal(RECIPES[1]));
-  else if (!state.items.key) ui.setGoal(recipeGoal(RECIPES[2]));
-  else if (state.where === 'island') ui.setGoal('🗝️ The stone ring on the east side is awake. Step through it!');
-  else if (state.wishesDone.length < CHARACTERS.length) {
-    ui.setGoal(`💬 Make friends in the castle! ${touch ? 'Walk close and tap 💬' : 'Walk close and press E'} (wishes granted: ${state.wishesDone.length}/${CHARACTERS.length})`);
-  } else {
-    ui.setGoal('🏰 Everyone is your friend! Explore the towers, fly, and build ✨');
+  const lvl = state.level ?? 1;
+  if (state.peaceful && lvl >= 2 && lvl <= 10) {
+    ui.setGoal('😴 Peaceful mode — enemies are napping. (Wake them in the 🎒 bag.)');
+    return;
   }
+  if (lvl === 1) {
+    if (!state.items.wand) ui.setGoal('⚔️ Level 1: ' + recipeGoal(RECIPES[0]));
+    else if (!state.items.broom) ui.setGoal('⚔️ Level 1: ' + recipeGoal(RECIPES[1]));
+    else if (!state.items.key) ui.setGoal('⚔️ Level 1: ' + recipeGoal(RECIPES[2]));
+    else ui.setGoal('⚔️ Level 1: follow the beam of light east — step through the ruin!');
+    return;
+  }
+  if (lvl >= 11) {
+    ui.setGoal('🕊️ Peace reigns! Build, duel friends at the green, and celebrate ✨');
+    return;
+  }
+  const def = LEVELS[lvl];
+  const here = state.where === def.realm;
+  const whereHint = here ? def.hint : def.realm === 'castle' ? 'They are at the CASTLE — take the portal!' : def.realm === 'shadow' ? 'Enter the dark portal in the castle courtyard!' : 'They roam the ISLAND — head home!';
+  ui.setGoal(`${def.emoji} Level ${lvl}: ${def.name} — ${state.levelKills ?? 0}/${def.goal} · ${whereHint}`);
 }
 updateGoal();
 
@@ -342,7 +402,20 @@ function openChest(): void {
 
 function doBreak(): void {
   if (ui.isCraftOpen()) return;
+  if (duelRayTag()) return; // friendly duel tags come first
+  // the wand is also a sword: enemies in the crosshair get whacked
   const hit = targetBlock();
+  {
+    const dir = camera.getWorldDirection(new THREE.Vector3());
+    const camDist = camera.position.distanceTo(player.pos);
+    const eh = enemies.rayHit(camera.position.x, camera.position.y, camera.position.z, dir.x, dir.y, dir.z, camDist - 0.6);
+    if (eh && eh.enemy.pos.distanceTo(player.pos) < reach() + 2 && (!hit || eh.t < hit.t)) {
+      const dmg = state.items.wand ? 2 : 1;
+      eh.enemy.hit(dmg, player.pos);
+      particles.burst(eh.enemy.pos.x, eh.enemy.pos.y + 1, eh.enemy.pos.z, 0xffffff, 6);
+      return;
+    }
+  }
   if (!hit) return;
   if (hit.y === 0) {
     ui.toast('The world base is magic-proof ✨');
@@ -363,6 +436,7 @@ function doBreak(): void {
   }
   world.set(hit.x, hit.y, hit.z, AIR);
   voxels.blockChanged(hit.x, hit.z);
+  if (state.where === 'island') islandEncDirty = true;
   particles.burst(hit.x + 0.5, hit.y + 0.5, hit.z + 0.5, def.color, state.items.wand ? 14 : 10);
   if (state.items.wand) particles.burst(hit.x + 0.5, hit.y + 0.5, hit.z + 0.5, 0xf0a6e8, 5);
   state.resources[hit.id] = (state.resources[hit.id] ?? 0) + 1;
@@ -392,6 +466,7 @@ function doPlace(): void {
   }
   world.set(x, y, z, id);
   voxels.blockChanged(x, z);
+  if (state.where === 'island') islandEncDirty = true;
   ui.refreshCounts(state);
   markDirty();
 }
@@ -411,10 +486,13 @@ function craftRecipe(recipe: Recipe): void {
   } else if (recipe.id === 'broom') {
     ui.setFlyButtonVisible(touch);
     ui.toast(touch ? '🧹 A flying broom! Tap 🧹 to fly!' : '🧹 A flying broom! Press F to fly!');
+  } else if (recipe.id === 'patronus') {
+    ui.toast(touch ? '🦌 The Patronus Charm! Tap 🦌 when dementors close in!' : '🦌 The Patronus Charm! Press G when dementors close in!');
   } else {
     ui.toast('🗝️ Somewhere on the island, old stones begin to glow…');
   }
   particles.burst(player.pos.x, player.pos.y + 1.2, player.pos.z, 0xf0a6e8, 16);
+  checkLevelOne();
 }
 
 // ---------- flying ----------
@@ -602,10 +680,14 @@ function talk(): void {
     }
   }
 
-  // everyone else: friendly chatter with replies
+  // everyone else: friendly chatter with replies (and duels, for good friends)
   const hearts = sparkle();
   checkFamilyGift();
-  ui.showDialogue(def.name, def.nameColor, def.lines[npc.lineIndex % def.lines.length], hearts, [moreReply, bye]);
+  const replies = [moreReply, bye];
+  if (hearts >= 3 && !duel && !state.peaceful) {
+    replies.splice(1, 0, { label: 'Duel me! ⚡', onPick: () => startDuel(npc) });
+  }
+  ui.showDialogue(def.name, def.nameColor, def.lines[npc.lineIndex % def.lines.length], hearts, replies);
   npc.lineIndex++;
   updateGoal();
 }
@@ -625,6 +707,7 @@ const skyDayTint = new THREE.Color(0xffffff);
 function applyDayNight(dt: number): void {
   timeOfDay = (timeOfDay + dt / DAY_CYCLE) % 1;
   daylight = Math.max(0, Math.min(1, Math.sin(timeOfDay * Math.PI * 2) * 1.6 + 0.45));
+  if (state.where === 'shadow') daylight = Math.min(daylight, 0.12); // eternal dusk
   sun.intensity = 0.12 + 0.78 * daylight;
   hemi.intensity = 0.3 + 0.65 * daylight;
   (scene.fog as THREE.Fog).color.lerpColors(fogNight, fogDay, daylight);
@@ -707,7 +790,7 @@ function takeDamage(amount: number, why: string): void {
     // gentle "defeat": Pip drags you home for a rest, hearts refill
     state.health = MAX_HEALTH;
     ui.setHearts(state.health);
-    const home = state.where === 'island' ? spawn : CASTLE_SPAWN;
+    const home = realmHome(state.where as Realm);
     player.pos.set(home.x, home.y + 1, home.z);
     player.vel.set(0, 0, 0);
     player.setFlying(false);
@@ -739,6 +822,328 @@ function checkWillowWhomp(dt: number): void {
   }
 }
 
+// ---------- the campaign: enemies, levels, bosses ----------
+
+const enemies = new EnemyManager(scene);
+let iframes = 0; // global player invulnerability window
+let drainTier = -1;
+let patronusCooldown = 0;
+
+function damagePlayer(amount: number, why: string): void {
+  if (iframes > 0 || state.peaceful || amount <= 0) return;
+  iframes = 1.0;
+  takeDamage(amount, `${why} got you!`);
+}
+
+const enemyCtx = {
+  world: () => world,
+  playerPos: player.pos,
+  isNight,
+  damagePlayer,
+  onDefeated: (kind: EnemyKind, pos: THREE.Vector3) => {
+    const def = LEVELS[state.level ?? 1];
+    if (def?.enemy === kind && !state.peaceful) {
+      state.levelKills = (state.levelKills ?? 0) + 1;
+      if (state.levelKills >= def.goal) {
+        levelComplete();
+      } else {
+        ui.toast(`${def.emoji} ${KINDS[kind].label} freed! ${state.levelKills}/${def.goal}`);
+      }
+    }
+    // little victory loot
+    if (Math.random() < 0.3) {
+      state.resources[CRYSTAL] = (state.resources[CRYSTAL] ?? 0) + 1;
+      ui.refreshCounts(state);
+    }
+    void pos;
+    updateGoal();
+    markDirty();
+  },
+  burst: (x: number, y: number, z: number, color: number, n: number) => particles.burst(x, y, z, color, n),
+  summon: (kind: EnemyKind, n: number, around: THREE.Vector3) => {
+    for (let i = 0; i < n; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      enemies.spawn(kind, around.x + Math.cos(angle) * 4, around.y + 1, around.z + Math.sin(angle) * 4);
+    }
+  },
+  fireAtPlayer: (from: THREE.Vector3, count: number) => {
+    for (let i = 0; i < count; i++) enemies.fireBolt(from, player.pos, count > 1 ? 0.5 : 0.12);
+  },
+};
+
+function isSafeZone(x: number, z: number): boolean {
+  if (state.where === 'island') {
+    if (Math.hypot(x - spawn.x, z - spawn.z) < 32) return true; // the village
+    return nearGate(x, z);
+  }
+  if (state.where === 'castle') return avoidCastleFootprint(x, z);
+  return Math.hypot(x - SHADOW_SPAWN.x, z - SHADOW_SPAWN.z) < 8;
+}
+
+const CONCURRENT: Partial<Record<EnemyKind, number>> = {
+  slime: 4, werewolf: 3, pixie: 5, spider: 3, troll: 2, dementor: 3, deatheater: 3,
+};
+
+function updateCampaign(dt: number): void {
+  iframes = Math.max(0, iframes - dt);
+  patronusCooldown = Math.max(0, patronusCooldown - dt);
+  if (state.peaceful) {
+    if (enemies.alive() > 0) enemies.clear();
+    updateDrainFX(0);
+    ui.setBoss(null);
+    return;
+  }
+  const lvl = state.level ?? 1;
+  const def = LEVELS[lvl];
+  enemies.update(dt, enemyCtx);
+
+  if (def?.enemy && state.where === def.realm) {
+    if (def.enemy === 'basilisk' || def.enemy === 'voldemort') {
+      if (enemies.alive(def.enemy) === 0 && (state.levelKills ?? 0) < def.goal) {
+        if (def.enemy === 'basilisk') {
+          const bx = islandGate.x + 8, bz = islandGate.z + 8;
+          if (Math.hypot(player.pos.x - bx, player.pos.z - bz) < 45) {
+            const by = world.surfaceY(bx, bz);
+            enemies.spawn('basilisk', bx, by + 1, bz);
+            ui.toast('🐍 The ground trembles…');
+          }
+        } else {
+          enemies.spawn('voldemort', 32.5, 13, 44.5);
+          ui.toast('⚡ "So. The little builder has come."');
+        }
+      }
+    } else {
+      const remaining = def.goal - (state.levelKills ?? 0);
+      const want = Math.min(CONCURRENT[def.enemy] ?? 3, Math.max(1, remaining));
+      const nightBoost = def.enemy === 'werewolf' && isNight() ? 1 : 0;
+      enemies.maintain(def.enemy, want + nightBoost, dt, enemyCtx, isSafeZone);
+    }
+  }
+
+  // boss bar
+  const boss = enemies.enemies.find((e) => !e.dead && (e.kind === 'basilisk' || e.kind === 'voldemort'));
+  ui.setBoss(boss ? boss.def.label : null, boss ? boss.hp / boss.def.hp : 1);
+
+  // dementors chill the air (and the screen) — but never finish you off
+  let nearest = 99;
+  for (const e of enemies.enemies) {
+    if (e.kind !== 'dementor' || e.dead || e.stunned > 0) continue;
+    nearest = Math.min(nearest, e.pos.distanceTo(player.pos));
+  }
+  if (nearest < 9) {
+    drainTimer -= dt;
+    if (drainTimer <= 0) {
+      drainTimer = 2;
+      if ((state.health ?? MAX_HEALTH) > 1) {
+        state.health = state.health! - 1;
+        ui.setHearts(state.health);
+      }
+    }
+    updateDrainFX(nearest < 3.5 ? 3 : nearest < 6 ? 2 : 1);
+  } else {
+    drainTimer = 1;
+    updateDrainFX(0);
+  }
+}
+
+let drainTimer = 1;
+function updateDrainFX(tier: number): void {
+  if (tier === drainTier) return;
+  drainTier = tier;
+  const el = renderer.domElement;
+  el.classList.remove('drain-1', 'drain-2', 'drain-3');
+  if (tier > 0) el.classList.add(`drain-${tier}`);
+}
+
+function patronus(): void {
+  if (!state.items.patronus) {
+    ui.toast('You need the Patronus Charm — check the crafting bag 🎒');
+    return;
+  }
+  if (patronusCooldown > 0) return;
+  patronusCooldown = 3;
+  for (let ring = 0; ring < 3; ring++) {
+    window.setTimeout(() => {
+      for (let i = 0; i < 10; i++) {
+        const angle = (i / 10) * Math.PI * 2;
+        const r = 2 + ring * 3;
+        particles.burst(player.pos.x + Math.cos(angle) * r, player.pos.y + 1.2, player.pos.z + Math.sin(angle) * r, 0xcfeaff, 2);
+      }
+    }, ring * 120);
+  }
+  const repelled = enemies.repelDementors(player.pos, 13);
+  ui.toast(repelled > 0 ? `🦌 EXPECTO! ${repelled} dementor${repelled > 1 ? 's' : ''} flee the light!` : '🦌 A burst of silver light!');
+}
+
+function checkLevelOne(): void {
+  if ((state.level ?? 1) !== 1) return;
+  if (state.items.wand && state.items.broom && state.items.key && state.castleVisited) {
+    levelUp(2);
+  }
+}
+
+function levelUp(next: number): void {
+  state.level = next;
+  state.levelKills = 0;
+  const def = LEVELS[next];
+  if (def?.intro) ui.toast(def.intro);
+  for (let i = 0; i < 3; i++) {
+    window.setTimeout(() => particles.burst(player.pos.x, player.pos.y + 2 + i, player.pos.z, [0xffd24a, 0xf0a6e8, 0x7fd4f0][i], 16), i * 200);
+  }
+  if (next === 9) {
+    state.pipKidnapped = true;
+    elf.group.visible = false;
+    window.setTimeout(() => ui.toast('😱 PIP IS GONE! The Death Eaters took him! Defeat them all!'), 2600);
+  }
+  if (next === 10 && castle) {
+    ensureShadowGate(castle);
+    if (state.where === 'castle') voxels.blockChanged(CASTLE_SHADOW_GATE.x, CASTLE_SHADOW_GATE.z);
+  }
+  updateGoal();
+  saveNow();
+}
+
+function levelComplete(): void {
+  const lvl = state.level ?? 1;
+  if (lvl === 3) {
+    // calmed werewolves become village dogs!
+    const dogDefs = [
+      { name: 'Biscuit', robe: 0xa8825a, hair: 0x8a6a4a },
+      { name: 'Waffles', robe: 0x8a6a4a, hair: 0x6e5a3c },
+    ];
+    for (const dog of dogDefs) {
+      const npc = new NPC({
+        name: dog.name, robe: dog.robe, hair: dog.hair, nameColor: '#8a6a4a',
+        spot: [spawn.x + (Math.random() - 0.5) * 8, spawn.z + (Math.random() - 0.5) * 8],
+        indoor: [spawn.x, spawn.z],
+        lines: ['Woof!', 'Woof woof! 🐾', '*happy tail wags*'],
+      });
+      npc.pos.y = spawn.y;
+      npc.group.scale.setScalar(0.55);
+      scene.add(npc.group);
+      npc.group.visible = state.where === 'island';
+      islandNpcs.push(npc);
+    }
+    ui.toast('🐶 Two calmed werewolves became village dogs: Biscuit & Waffles!');
+  }
+  if (lvl === 9) {
+    state.pipKidnapped = false;
+    elf.group.visible = true;
+    elf.teleportTo(player.pos);
+    state.friendship['Pip'] = (state.friendship['Pip'] ?? 0) + 5;
+    ui.toast('🎉 PIP IS FREE! He does a little dance of joy!');
+    particles.burst(elf.pos.x, elf.pos.y + 1.2, elf.pos.z, 0xff6b9d, 24);
+  }
+  if (lvl === 10) {
+    victory();
+    return;
+  }
+  levelUp(lvl + 1);
+}
+
+function victory(): void {
+  state.level = 11;
+  state.levelKills = 0;
+  // a golden statue rises on the village plaza
+  const sx = Math.floor(spawn.x) + 3, sz = Math.floor(spawn.z) + 3;
+  const sy = island.surfaceY(sx, sz);
+  island.set(sx, sy + 1, sz, 23); // marble pedestal
+  island.set(sx, sy + 2, sz, 25); // sun-stone hero
+  island.set(sx, sy + 3, sz, 25);
+  island.set(sx, sy + 4, sz, 9); // a lantern crown
+  if (state.where === 'island') voxels.blockChanged(sx, sz);
+  islandEncDirty = true;
+  for (let i = 0; i < 8; i++) {
+    window.setTimeout(() => {
+      particles.burst(
+        player.pos.x + (Math.random() - 0.5) * 14,
+        player.pos.y + 4 + Math.random() * 6,
+        player.pos.z + (Math.random() - 0.5) * 14,
+        [0xffd24a, 0xf0a6e8, 0x7fd4f0, 0x7be0a0][i % 4], 22,
+      );
+    }, i * 350);
+  }
+  ui.toast(LEVELS[11].intro);
+  window.setTimeout(() => ui.toast('🏆 A golden statue of YOU now stands in the village!'), 3200);
+  window.setTimeout(() => ui.toast('Thank you for saving the realm, hero. Keep building! 💛'), 6400);
+  ui.setBoss(null);
+  updateGoal();
+  saveNow();
+}
+
+// ---------- friendly duels at the village green ----------
+
+let duel: { npc: NPC; mine: number; theirs: number; tagTimer: number } | null = null;
+
+function startDuel(npc: NPC): void {
+  duel = { npc, mine: 0, theirs: 0, tagTimer: 2.5 };
+  ui.hideDialogue();
+  ui.toast(`⚡ DUEL with ${npc.def.name}! First to 3 tags — click them!`);
+}
+
+function updateDuel(dt: number): void {
+  if (!duel) return;
+  const npc = duel.npc;
+  if (npc.pos.distanceTo(player.pos) > 24) {
+    ui.toast('The duel fizzles — too far apart!');
+    duel = null;
+    return;
+  }
+  duel.tagTimer -= dt;
+  if (duel.tagTimer <= 0) {
+    duel.tagTimer = 2.2 + Math.random() * 1.4;
+    enemies.fireBolt(npc.pos, player.pos, 0.35, true);
+    // friendly spark: a tag if you stand still, dodge by moving!
+    const speed = Math.hypot(player.vel.x, player.vel.z);
+    if (speed < 1.2) {
+      duel.theirs++;
+      ui.hurtFlash();
+      ui.toast(`⚡ Tagged! You ${duel.mine} — ${duel.theirs} ${npc.def.name}`);
+    }
+  }
+  if (duel.mine >= 3 || duel.theirs >= 3) {
+    const won = duel.mine >= 3;
+    particles.burst(player.pos.x, player.pos.y + 2, player.pos.z, won ? 0xffd24a : 0xb9a8ee, 24);
+    state.friendship[npc.def.name] = (state.friendship[npc.def.name] ?? 0) + 2;
+    if (won) state.foods!.juice++;
+    ui.setItems(state);
+    ui.toast(won ? `🏆 You win the duel! ${npc.def.name} hands you a juice. GG!` : `😄 ${npc.def.name} wins! "Best of luck next time!"`);
+    duel = null;
+    markDirty();
+  }
+}
+
+/** Ray-test a friendly duel partner (same slab math as enemies). */
+function duelRayTag(): boolean {
+  if (!duel) return false;
+  const dir = camera.getWorldDirection(new THREE.Vector3());
+  const npc = duel.npc;
+  const minX = npc.pos.x - 0.5, maxX = npc.pos.x + 0.5;
+  const minY = npc.pos.y, maxY = npc.pos.y + 1.9;
+  const minZ = npc.pos.z - 0.5, maxZ = npc.pos.z + 0.5;
+  let tmin = 0, tmax = 40;
+  const o = [camera.position.x, camera.position.y, camera.position.z];
+  const d = [dir.x, dir.y, dir.z];
+  const lo = [minX, minY, minZ], hi = [maxX, maxY, maxZ];
+  for (let i = 0; i < 3; i++) {
+    if (Math.abs(d[i]) < 1e-9) {
+      if (o[i] < lo[i] || o[i] > hi[i]) return false;
+    } else {
+      let t1 = (lo[i] - o[i]) / d[i], t2 = (hi[i] - o[i]) / d[i];
+      if (t1 > t2) [t1, t2] = [t2, t1];
+      tmin = Math.max(tmin, t1);
+      tmax = Math.min(tmax, t2);
+      if (tmin > tmax) return false;
+    }
+  }
+  duel.mine++;
+  duel.npc.lineIndex++;
+  particles.burst(npc.pos.x, npc.pos.y + 1.4, npc.pos.z, 0xf0a6e8, 8);
+  ui.toast(`⚡ Tag! You ${duel.mine} — ${duel.theirs} ${npc.def.name}`);
+  if (duel.mine >= 3) updateDuel(0);
+  return true;
+}
+
 // ---------- portals ----------
 
 const fadeEl = document.getElementById('fade')!;
@@ -753,12 +1158,13 @@ function inGate(gate: Gate, pos: THREE.Vector3): boolean {
   );
 }
 
-function travel(to: 'island' | 'castle'): void {
+function travel(to: Realm): void {
   traveling = true;
   fadeEl.classList.add('show');
   window.setTimeout(() => {
     state.where = to;
-    world = to === 'castle' ? getCastle() : island;
+    world = realmWorld(to);
+    enemies.clear();
     npcRoot.visible = to === 'castle';
     mermaid.group.visible = to === 'island';
     for (const npc of islandNpcs) npc.group.visible = to === 'island';
@@ -767,14 +1173,19 @@ function travel(to: 'island' | 'castle'): void {
     player.vel.set(0, 0, 0);
     if (to === 'castle') {
       player.pos.set(CASTLE_SPAWN.x, CASTLE_SPAWN.y, CASTLE_SPAWN.z);
+      state.castleVisited = true;
       ui.toast('🏰 Welcome to the castle!');
-    } else {
+    } else if (to === 'island') {
       player.pos.set(islandGate.x + 1.5, islandGate.y, islandGate.z + 2.5);
       ui.toast('🏝️ Home again!');
+    } else {
+      player.pos.set(SHADOW_SPAWN.x, SHADOW_SPAWN.y, SHADOW_SPAWN.z);
+      ui.toast('🌑 The Shadow Realm. He knows you are here.');
     }
     voxels.setWorld(world, player.pos.x, player.pos.z);
     wasInGate = true; // don't bounce straight back
-    elf.teleportTo(player.pos); // Pip comes along through the portal
+    if (!state.pipKidnapped) elf.teleportTo(player.pos); // Pip comes along through the portal
+    checkLevelOne();
     updateGoal();
     saveNow();
     window.setTimeout(() => fadeEl.classList.remove('show'), 150);
@@ -782,21 +1193,38 @@ function travel(to: 'island' | 'castle'): void {
   }, 420);
 }
 
+interface PortalRoute { gate: Gate; to: Realm; locked?: () => string | null }
+function portalRoutes(): PortalRoute[] {
+  switch (state.where as Realm) {
+    case 'island':
+      return [{
+        gate: islandGate, to: 'castle',
+        locked: () => (state.items.key ? null : 'The stone ring sleeps… it wants a Portal Key 🗝️'),
+      }];
+    case 'castle': {
+      const routes: PortalRoute[] = [{ gate: CASTLE_GATE, to: 'island' }];
+      if ((state.level ?? 1) >= 10) routes.push({ gate: CASTLE_SHADOW_GATE, to: 'shadow' });
+      return routes;
+    }
+    case 'shadow':
+      return [{ gate: SHADOW_RETURN_GATE, to: 'castle' }];
+  }
+}
+
 function checkPortals(): void {
   if (traveling) return;
-  const gate = state.where === 'island' ? islandGate : CASTLE_GATE;
-  const inside = inGate(gate, player.pos);
-  if (inside && !wasInGate) {
+  let anyInside = false;
+  for (const route of portalRoutes()) {
+    if (!inGate(route.gate, player.pos)) continue;
+    anyInside = true;
+    if (wasInGate) break;
     wasInGate = true;
-    if (state.where === 'island') {
-      if (state.items.key) travel('castle');
-      else ui.toast('The stone ring sleeps… it wants a Portal Key 🗝️');
-    } else {
-      travel('island');
-    }
-  } else if (!inside) {
-    wasInGate = false;
+    const lockMsg = route.locked?.();
+    if (lockMsg) ui.toast(lockMsg);
+    else travel(route.to);
+    break;
   }
+  if (!anyInside) wasInGate = false;
 }
 
 // portal sparkle so it reads as magical from far away
@@ -805,8 +1233,10 @@ function portalSparkle(dt: number): void {
   sparkleTimer -= dt;
   if (sparkleTimer > 0) return;
   sparkleTimer = 0.4;
-  const gate = state.where === 'island' ? islandGate : CASTLE_GATE;
-  const active = state.where === 'castle' || state.items.key;
+  const route = portalRoutes()[0];
+  if (!route) return;
+  const gate = route.gate;
+  const active = state.where !== 'island' || state.items.key;
   if (!active) return;
   particles.burst(
     gate.x + 0.5 + Math.random() * 2,
@@ -827,7 +1257,28 @@ controls.onTalk = talk;
 controls.onFly = toggleFly;
 controls.onCraft = () => ui.toggleCraft();
 controls.onEat = eatBest;
+controls.onPatronus = patronus;
 ui.onEat = eat;
+ui.onPatronusChip = patronus;
+ui.onPeaceful = (on) => {
+  state.peaceful = on;
+  if (on) {
+    enemies.clear();
+    updateDrainFX(0);
+    ui.setBoss(null);
+    duel = null;
+    ui.toast('😴 Enemies are napping. Build in peace!');
+  } else {
+    ui.toast('⚔️ Enemies are awake again. Brave hero!');
+  }
+  updateGoal();
+  markDirty();
+};
+ui.setPeacefulBox(state.peaceful ?? false);
+if (levelToastPending) {
+  const msg = levelToastPending;
+  window.setTimeout(() => ui.toast(msg), 1500);
+}
 
 ui.onSelect = (i) => ui.select(i);
 ui.onStart = () => { if (!touch) controls.lock(); };
@@ -842,7 +1293,15 @@ ui.onCraftToggle = (open) => {
 ui.onReset = () => {
   clearSave();
   seed = (Math.random() * 2 ** 31) | 0;
+  const keepPeaceful = state.peaceful ?? false; // a worried parent's setting survives
   Object.assign(state, defaultState());
+  state.peaceful = keepPeaceful;
+  enemies.clear();
+  duel = null;
+  shadow = null;
+  ui.setBoss(null);
+  updateDrainFX(0);
+  islandEncDirty = true;
   island = new World(ISLAND_SIZE, ISLAND_SIZE); // new islands grow BIG
   generateIsland(island, seed);
   islandGate = buildIslandPortal(island);
@@ -882,6 +1341,7 @@ if (touch) {
     place: doPlace,
     talk,
     fly: toggleFly,
+    patronus,
   });
 }
 
@@ -938,8 +1398,8 @@ function frame(): void {
 
   // safety net: never fall forever
   if (player.pos.y < -5) {
-    if (state.where === 'island') player.pos.set(spawn.x, spawn.y + 2, spawn.z);
-    else player.pos.set(CASTLE_SPAWN.x, CASTLE_SPAWN.y + 2, CASTLE_SPAWN.z);
+    const home = realmHome(state.where as Realm);
+    player.pos.set(home.x, home.y + 2, home.z);
     player.vel.set(0, 0, 0);
   }
 
@@ -961,6 +1421,9 @@ function frame(): void {
   dome.position.copy(camera.position); // the sky travels with you
 
   checkWillowWhomp(dt);
+  updateCampaign(dt);
+  updateDuel(dt);
+  if (touch) ui.setPatronusVisible(state.items.patronus && (state.level ?? 1) >= 8);
   checkPortals();
   portalSparkle(dt);
   updateCamera(dt);
@@ -991,6 +1454,8 @@ window.addEventListener('resize', () => {
 (window as unknown as Record<string, unknown>).__spellcraft = {
   world: () => world, player, controls, camera, ui, state, npcs,
   doBreak, doPlace, talk, toggleFly, travel, craftRecipe, targetBlock, trySleep,
+  enemies, patronus, levelUp, levelComplete,
+  setLevel: (n: number) => { state.level = n; state.levelKills = 0; updateGoal(); },
   setTime: (t: number) => { timeOfDay = t; },
   get timeOfDay() { return timeOfDay; },
   get daylight() { return daylight; },

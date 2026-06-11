@@ -77,6 +77,7 @@ export const BLOCKS: BlockDef[] = [
   { id: 35, name: 'Toilet', tiles: t(38), bucket: 'opaque', solid: true, color: 0xf4f6fa },
   { id: 36, name: 'Sink', tiles: t(39), bucket: 'opaque', solid: true, color: 0xf4f6fa },
   { id: 37, name: 'Shower', tiles: t(40), bucket: 'opaque', solid: true, color: 0xbfe6f7 },
+  { id: 38, name: 'Spider Web', tiles: t(41), bucket: 'cutout', solid: false, shape: 'cross', color: 0xe8e8f0 },
 ];
 
 export const BUSH = 19;
@@ -95,7 +96,7 @@ export const PLACEABLE = [
   1, 2, 3, 4, 6, 7, 8, 9, 10, 5,
   11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
   21, 22, 23, 24, 25, 26, 27, 28, 29,
-  31, 32, 33, 34, 35, 36, 37,
+  31, 32, 33, 34, 35, 36, 37, 38,
 ];
 
 export const isSolid = (id: number): boolean => BLOCKS[id]?.solid ?? false;

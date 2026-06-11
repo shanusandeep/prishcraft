@@ -15,7 +15,7 @@ export class TouchControls {
 
   constructor(
     controls: Controls,
-    actions: { break: () => void; place: () => void; talk: () => void; fly: () => void },
+    actions: { break: () => void; place: () => void; talk: () => void; fly: () => void; patronus: () => void },
   ) {
     const ui = document.getElementById('touch-ui')!;
     ui.hidden = false;
@@ -108,6 +108,10 @@ export class TouchControls {
     document.getElementById('btn-fly')!.addEventListener('pointerdown', (e) => {
       e.preventDefault();
       actions.fly();
+    });
+    document.getElementById('btn-patronus')!.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      actions.patronus();
     });
   }
 }

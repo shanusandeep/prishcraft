@@ -13,6 +13,8 @@ export class UI {
   onCraftToggle?: (open: boolean) => void;
   onFlyChip?: () => void;
   onEat?: (kind: 'carrot' | 'juice' | 'brew') => void;
+  onPeaceful?: (on: boolean) => void;
+  onPatronusChip?: () => void;
 
   private slots: HTMLButtonElement[] = [];
   private slotCounts: HTMLSpanElement[] = [];
@@ -57,6 +59,9 @@ export class UI {
 
     document.getElementById('bag')!.addEventListener('click', () => this.toggleCraft());
     document.getElementById('craft-close')!.addEventListener('click', () => this.toggleCraft(false));
+    document.getElementById('peaceful-box')!.addEventListener('change', (e) => {
+      this.onPeaceful?.((e.target as HTMLInputElement).checked);
+    });
 
     // welcome card
     const keys = document.getElementById('help-keys')!;
@@ -196,6 +201,9 @@ export class UI {
       chip(this.touch ? '🧹' : '🧹 <small>F</small>', 'Flying Broom — tap to fly!', () => this.onFlyChip?.());
     }
     if (state.items.key) chip('🗝️', 'Portal Key — the stone ring is awake');
+    if (state.items.patronus) {
+      chip(this.touch ? '🦌' : '🦌 <small>G</small>', 'Patronus Charm — a burst of light against dementors!', () => this.onPatronusChip?.());
+    }
 
     // food chips — tap to munch
     const carrots = state.resources[CARROT] ?? 0;
@@ -303,5 +311,24 @@ export class UI {
 
   setDownVisible(on: boolean): void {
     document.getElementById('btn-down')!.hidden = !on;
+  }
+
+  setPatronusVisible(on: boolean): void {
+    document.getElementById('btn-patronus')!.hidden = !on;
+  }
+
+  setPeacefulBox(on: boolean): void {
+    (document.getElementById('peaceful-box') as HTMLInputElement).checked = on;
+  }
+
+  setBoss(name: string | null, frac = 1): void {
+    const bar = document.getElementById('bossbar')!;
+    if (!name) {
+      bar.hidden = true;
+      return;
+    }
+    bar.hidden = false;
+    document.getElementById('boss-name')!.textContent = name;
+    (document.getElementById('boss-fill') as HTMLElement).style.width = `${Math.max(0, frac * 100)}%`;
   }
 }

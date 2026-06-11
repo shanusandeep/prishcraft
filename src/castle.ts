@@ -1,6 +1,8 @@
 import { World } from './world';
 import { AIR, WATER, TIMBER, LEAF, CRYSTAL, LANTERN, BLOSSOM, BRICK, ROOF, PLANK, BOOKSHELF, PUMPKIN, CARROT, CHEST } from './blocks';
-import { mulberry32, WATER_Y, cottage } from './terrain';
+import { mulberry32, WATER_Y, cottage, Gate } from './terrain';
+
+const NIGHTSTONE = 24, MARBLE = 23, SUNSTONE = 25;
 
 const MEADOW = 1, EARTH = 2, STONE = 3, SAND = 4;
 
@@ -15,6 +17,73 @@ function fill(world: World, x1: number, y1: number, z1: number, x2: number, y2: 
       for (let z = z1; z <= z2; z++) world.set(x, y, z, id);
     }
   }
+}
+
+/** Where the dark portal stands in the castle courtyard once level 10 begins. */
+export const CASTLE_SHADOW_GATE: Gate = { x: 41, y: 13, z: 21 };
+/** The return gate inside the Shadow Realm. */
+export const SHADOW_RETURN_GATE: Gate = { x: 31, y: 13, z: 8 };
+export const SHADOW_SPAWN = { x: 32.5, y: 13, z: 11.5 };
+
+/** Builds the dark portal in the castle courtyard (marked by Night Stone). */
+export function ensureShadowGate(world: World): void {
+  if (world.get(CASTLE_SHADOW_GATE.x - 1, CASTLE_SHADOW_GATE.y, CASTLE_SHADOW_GATE.z) === NIGHTSTONE) return;
+  const g = CASTLE_SHADOW_GATE;
+  for (let y = g.y; y <= g.y + 3; y++) {
+    world.set(g.x - 1, y, g.z, NIGHTSTONE);
+    world.set(g.x + 3, y, g.z, NIGHTSTONE);
+  }
+  for (let x = g.x - 1; x <= g.x + 3; x++) world.set(x, g.y + 3, g.z, NIGHTSTONE);
+  fill(world, g.x, g.y, g.z, g.x + 2, g.y + 2, g.z, AIR);
+}
+
+/** The Shadow Realm: a dark plateau with Voldemort's broken arena. */
+export function generateShadowRealm(world: World, seed: number): void {
+  const rand = mulberry32(seed);
+  world.data.fill(AIR);
+  for (let x = 0; x < world.sizeX; x++) {
+    for (let z = 0; z < world.sizeZ; z++) {
+      const pd = Math.max(Math.abs(x - 32), Math.abs(z - 32));
+      const h = pd <= 26 ? 12 : Math.max(2, 12 - (pd - 26) * 3);
+      for (let y = 0; y <= h; y++) {
+        world.set(x, y, z, y === h ? NIGHTSTONE : 3);
+      }
+      for (let y = h + 1; y <= WATER_Y; y++) world.set(x, y, z, WATER);
+    }
+  }
+  // jagged dark spires
+  for (let i = 0; i < 24; i++) {
+    const x = 8 + Math.floor(rand() * 48), z = 8 + Math.floor(rand() * 48);
+    if (Math.hypot(x - 32, z - 36) < 16) continue; // not in the arena
+    const tall = 2 + Math.floor(rand() * 4);
+    for (let y = 13; y < 13 + tall; y++) world.set(x, y, z, NIGHTSTONE);
+    if (rand() < 0.4) world.set(x, 13 + tall, z, CRYSTAL);
+  }
+  // the arena: a broken ring of dark walls with a marble floor
+  for (let dx = -14; dx <= 14; dx++) {
+    for (let dz = -14; dz <= 14; dz++) {
+      const d = Math.hypot(dx, dz);
+      const x = 32 + dx, z = 36 + dz;
+      if (d < 12) world.set(x, 12, z, MARBLE);
+      if (d >= 12 && d < 13.5 && rand() < 0.8) {
+        const tall = 2 + Math.floor(rand() * 3);
+        for (let y = 13; y < 13 + tall; y++) world.set(x, y, z, NIGHTSTONE);
+      }
+    }
+  }
+  // his dais, with one stolen light
+  fill(world, 30, 13, 44, 34, 13, 46, NIGHTSTONE);
+  world.set(32, 14, 45, SUNSTONE);
+  // the way home
+  const r = SHADOW_RETURN_GATE;
+  for (let y = 13; y <= 16; y++) {
+    world.set(r.x - 1, y, r.z, BRICK);
+    world.set(r.x + 3, y, r.z, BRICK);
+  }
+  for (let x = r.x - 1; x <= r.x + 3; x++) world.set(x, 16, r.z, BRICK);
+  fill(world, r.x, 13, r.z, r.x + 2, 15, r.z, AIR);
+  world.set(r.x - 1, 17, r.z, CRYSTAL);
+  world.set(r.x + 3, 17, r.z, CRYSTAL);
 }
 
 /**
@@ -208,6 +277,10 @@ export function generateCastleRealm(world: World, seed: number): void {
   buildVillage(world);
 
   // ---- the return portal ----
+  buildReturnPortal(world);
+}
+
+function buildReturnPortal(world: World): void {
   fill(world, 30, 13, 14, 30, 16, 14, BRICK);
   fill(world, 34, 13, 14, 34, 16, 14, BRICK);
   fill(world, 30, 16, 14, 34, 16, 14, BRICK);

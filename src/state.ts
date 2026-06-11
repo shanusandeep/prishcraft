@@ -4,6 +4,7 @@ export interface Items {
   wand: boolean;
   broom: boolean;
   key: boolean;
+  patronus: boolean;
 }
 
 export interface GameState {
@@ -15,7 +16,7 @@ export interface GameState {
   /** character wishes already granted */
   wishesDone: string[];
   /** which realm the player is in */
-  where: 'island' | 'castle';
+  where: 'island' | 'castle' | 'shadow';
   /** Pip's current command */
   elfMode?: 'follow' | 'stay';
   /** hearts, 0..10 */
@@ -26,6 +27,16 @@ export interface GameState {
   timeOfDay?: number;
   /** families whose gift chest has already appeared */
   familyGifts?: string[];
+  /** campaign level 1..10, 11 = peace */
+  level?: number;
+  /** enemies defeated within the current level */
+  levelKills?: number;
+  /** enemies nap; level goals pause */
+  peaceful?: boolean;
+  /** the player has reached the castle at least once */
+  castleVisited?: boolean;
+  /** Pip is held by the Death Eaters (level 9) */
+  pipKidnapped?: boolean;
 }
 
 export const MAX_HEALTH = 10;
@@ -74,12 +85,23 @@ export const RECIPES: Recipe[] = [
       { block: BLOSSOM, count: 3 },
     ],
   },
+  {
+    id: 'patronus',
+    name: 'Patronus Charm',
+    emoji: '🦌',
+    blurb: 'Press G — a burst of light that scares dementors away!',
+    needs: [
+      { block: LANTERN, count: 4 },
+      { block: CRYSTAL, count: 4 },
+      { block: BLOSSOM, count: 2 },
+    ],
+  },
 ];
 
 export function defaultState(): GameState {
   return {
     resources: {},
-    items: { wand: false, broom: false, key: false },
+    items: { wand: false, broom: false, key: false, patronus: false },
     friendship: {},
     wishesDone: [],
     where: 'island',
@@ -88,6 +110,11 @@ export function defaultState(): GameState {
     foods: { juice: 0, brew: 0 },
     timeOfDay: 0.1,
     familyGifts: [],
+    level: 1,
+    levelKills: 0,
+    peaceful: false,
+    castleVisited: false,
+    pipKidnapped: false,
   };
 }
 

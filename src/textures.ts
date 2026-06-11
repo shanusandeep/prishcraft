@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 export const TILE = 16;
-export const TILE_COUNT = 41;
+export const TILE_COUNT = 42;
 
 // Atlas tile layout:
 // 0 meadow-top  1 meadow-side  2 earth  3 pebble  4 sand  5 water
@@ -356,6 +356,19 @@ export function createAtlas(): Atlas {
   for (const [dx, dy] of [[5, 4], [8, 5], [11, 4], [6, 8], [10, 9], [8, 12]] as const) {
     ctx.fillRect(TILE * 40 + dx, dy, 1, 2); // droplets
   }
+
+  // 41: spider web — silvery threads, transparent bg
+  ctx.strokeStyle = 'rgba(232,232,240,0.95)';
+  ctx.beginPath();
+  for (const [x2, y2] of [[15, 15], [15, 0], [0, 15], [8, 15], [15, 8]] as const) {
+    ctx.moveTo(TILE * 41 + 8, 8);
+    ctx.lineTo(TILE * 41 + x2, y2 as number);
+  }
+  ctx.moveTo(TILE * 41 + 4, 4); ctx.lineTo(TILE * 41 + 12, 4);
+  ctx.moveTo(TILE * 41 + 12, 4); ctx.lineTo(TILE * 41 + 12, 12);
+  ctx.moveTo(TILE * 41 + 12, 12); ctx.lineTo(TILE * 41 + 4, 12);
+  ctx.moveTo(TILE * 41 + 4, 12); ctx.lineTo(TILE * 41 + 4, 4);
+  ctx.stroke();
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.magFilter = THREE.NearestFilter;
