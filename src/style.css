@@ -134,6 +134,34 @@ html, body {
   #touch-buttons button { width: 56px; height: 56px; font-size: 20px; }
   #touch-buttons button span { font-size: 9px; }
   #touch-buttons button[hidden] { display: none; }
+
+  /* the crafting bag, phone-sized */
+  #craft-card {
+    width: 94vw;
+    max-height: 90vh;
+    padding: 14px 14px 10px;
+    border-radius: 18px;
+  }
+  #craft-card h2 { font-size: 18px; margin-bottom: 8px; }
+  #pouch { gap: 5px; padding: 6px; margin-bottom: 8px; }
+  .pouch-item { font-size: 11.5px; gap: 3px; }
+  .pouch-item img { width: 18px; height: 18px; }
+  .recipe { gap: 8px; padding: 8px 10px; margin-bottom: 7px; border-radius: 12px; }
+  .recipe .emoji { font-size: 22px; }
+  .recipe .info b { font-size: 13.5px; }
+  .recipe .info p { font-size: 10.5px; margin: 1px 0 3px; }
+  .recipe .needs { gap: 6px; font-size: 10.5px; flex-wrap: wrap; }
+  .recipe .needs .block-icon { width: 14px; height: 14px; vertical-align: -3px; }
+  .recipe button { padding: 7px 11px; font-size: 12px; }
+  #peaceful-row { font-size: 12.5px; margin: 2px 0 8px; }
+  #craft-close { padding: 8px 20px; font-size: 14px; }
+
+  /* the welcome card, phone-sized */
+  #help-card { padding: 18px 20px; max-width: 92vw; border-radius: 18px; }
+  #help-card h1 { font-size: 26px; }
+  #help-card .subtitle { font-size: 14px; margin: 4px 0 12px; }
+  #help-keys { font-size: 12.5px; gap: 4px 10px; margin-bottom: 14px; }
+  #start { padding: 11px 22px; font-size: 16px; }
 }
 
 /* ---------- Quest banner, items, dialogue ---------- */
