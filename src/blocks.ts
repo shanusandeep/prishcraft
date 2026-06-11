@@ -69,17 +69,33 @@ export const BLOCKS: BlockDef[] = [
   { id: 29, name: 'Cozy Rose', tiles: t(30), bucket: 'opaque', solid: true, color: 0xf7c6d9 },
   // not placeable — found in the world, breaks open into treasure
   { id: 30, name: 'Treasure Chest', tiles: { top: 32, side: 31, bottom: 32 }, bucket: 'opaque', solid: true, color: 0xc09368 },
+  // furniture — sleep in beds at night!
+  { id: 31, name: 'Bed', tiles: { top: 33, side: 34, bottom: 14 }, bucket: 'opaque', solid: true, color: 0xe06a8a },
+  { id: 32, name: 'Painting', tiles: { top: 14, side: 35, bottom: 14 }, bucket: 'opaque', solid: true, color: 0xd9a520 },
+  { id: 33, name: 'Chair', tiles: { top: 14, side: 36, bottom: 14 }, bucket: 'opaque', solid: true, color: 0xb8895e },
+  { id: 34, name: 'Feast Table', tiles: { top: 37, side: 14, bottom: 14 }, bucket: 'opaque', solid: true, color: 0xe0a85f },
+  { id: 35, name: 'Toilet', tiles: t(38), bucket: 'opaque', solid: true, color: 0xf4f6fa },
+  { id: 36, name: 'Sink', tiles: t(39), bucket: 'opaque', solid: true, color: 0xf4f6fa },
+  { id: 37, name: 'Shower', tiles: t(40), bucket: 'opaque', solid: true, color: 0xbfe6f7 },
 ];
 
 export const BUSH = 19;
 export const SNOW = 20;
 export const CHEST = 30;
+export const BED = 31;
+export const PAINTING = 32;
+export const CHAIR = 33;
+export const FEAST = 34;
+export const TOILET = 35;
+export const SINK = 36;
+export const SHOWER = 37;
 
 /** Block ids available in the hotbar, in display order. */
 export const PLACEABLE = [
   1, 2, 3, 4, 6, 7, 8, 9, 10, 5,
   11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
   21, 22, 23, 24, 25, 26, 27, 28, 29,
+  31, 32, 33, 34, 35, 36, 37,
 ];
 
 export const isSolid = (id: number): boolean => BLOCKS[id]?.solid ?? false;

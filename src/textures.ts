@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 export const TILE = 16;
-export const TILE_COUNT = 33;
+export const TILE_COUNT = 41;
 
 // Atlas tile layout:
 // 0 meadow-top  1 meadow-side  2 earth  3 pebble  4 sand  5 water
@@ -11,6 +11,8 @@ export const TILE_COUNT = 33;
 // 18 carrot (transparent)  19 pumpkin  20 bush  21 snow  22 ice  23 glass
 // 24 marble  25 night stone  26 sun stone  27 rainbow  28-30 cozy wools
 // 31 chest front/side  32 chest top
+// 33 bed top  34 bed side  35 painting  36 chair  37 feast top
+// 38 toilet  39 sink  40 shower
 
 export interface Atlas {
   canvas: HTMLCanvasElement;
@@ -274,6 +276,86 @@ export function createAtlas(): Atlas {
   ctx.fillStyle = '#8a6240';
   for (const y of [0, 7, 8, 15]) ctx.fillRect(TILE * 32, y, TILE, 1);
   speckle(32, ['#a87c52', '#c89c70'], 14);
+
+  // 33: bed top — rose blanket with a white pillow band
+  fill(33, '#e06a8a');
+  ctx.fillStyle = '#f2f2fa';
+  ctx.fillRect(TILE * 33, 0, TILE, 5); // pillow
+  ctx.fillStyle = '#c95572';
+  for (let y = 7; y < TILE; y += 3) ctx.fillRect(TILE * 33, y, TILE, 1);
+  speckle(33, ['#ea8aa2'], 8);
+
+  // 34: bed side — wooden frame with blanket stripe
+  fill(34, '#a87c52');
+  ctx.fillStyle = '#e06a8a';
+  ctx.fillRect(TILE * 34, 0, TILE, 6);
+  ctx.fillStyle = '#f2f2fa';
+  ctx.fillRect(TILE * 34, 0, 4, 6);
+
+  // 35: painting — gilt frame around a tiny landscape
+  fill(35, '#d9a520');
+  ctx.fillStyle = '#8ed0ff';
+  ctx.fillRect(TILE * 35 + 2, 2, 12, 12);
+  ctx.fillStyle = '#4a9e5f';
+  ctx.fillRect(TILE * 35 + 2, 9, 12, 5);
+  ctx.fillStyle = '#ffd24a';
+  ctx.fillRect(TILE * 35 + 10, 4, 3, 3); // little sun
+  ctx.fillStyle = '#b8860b';
+  ctx.strokeStyle = '#b8860b';
+  ctx.strokeRect(TILE * 35 + 1.5, 1.5, 13, 13);
+
+  // 36: chair — wooden seat with slat back
+  fill(36, '#b8895e');
+  ctx.fillStyle = '#8a6240';
+  for (const x of [2, 6, 10, 14]) ctx.fillRect(TILE * 36 + x, 1, 2, 9);
+  ctx.fillStyle = '#d9b487';
+  ctx.fillRect(TILE * 36, 10, TILE, 3); // seat
+
+  // 37: feast top — a tablecloth covered in food
+  fill(37, '#f2ecff');
+  ctx.fillStyle = '#e0a85f';
+  ctx.fillRect(TILE * 37 + 2, 3, 4, 3); // bread
+  ctx.fillStyle = '#e8862a';
+  ctx.fillRect(TILE * 37 + 10, 2, 4, 4); // pumpkin pie
+  ctx.fillStyle = '#7be0a0';
+  ctx.fillRect(TILE * 37 + 3, 10, 3, 3); // greens
+  ctx.fillStyle = '#e06a6a';
+  ctx.fillRect(TILE * 37 + 9, 10, 3, 3); // berries
+  ctx.fillStyle = '#ffd24a';
+  ctx.fillRect(TILE * 37 + 7, 6, 2, 2); // butter!
+
+  // 38: toilet — porcelain with a seat ring
+  fill(38, '#f4f6fa');
+  ctx.fillStyle = '#c9cedd';
+  ctx.strokeStyle = '#c9cedd';
+  ctx.beginPath();
+  ctx.arc(TILE * 38 + 8, 8, 5, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.fillStyle = '#dde3f0';
+  ctx.fillRect(TILE * 38, 13, TILE, 3); // base
+
+  // 39: sink — porcelain with a faucet
+  fill(39, '#f4f6fa');
+  ctx.fillStyle = '#9aa3b8';
+  ctx.fillRect(TILE * 39 + 7, 2, 2, 4); // faucet
+  ctx.fillRect(TILE * 39 + 5, 2, 6, 2);
+  ctx.fillStyle = '#bfe6f7';
+  ctx.fillRect(TILE * 39 + 5, 8, 6, 4); // basin water
+  ctx.fillStyle = '#dde3f0';
+  ctx.strokeStyle = '#c9cedd';
+  ctx.strokeRect(TILE * 39 + 3.5, 6.5, 9, 7);
+
+  // 40: shower — blue tiles with a shower head and spray
+  fill(40, '#bfe6f7');
+  ctx.fillStyle = '#a5d4ec';
+  for (let x = 0; x < TILE; x += 4) ctx.fillRect(TILE * 40 + x, 0, 1, TILE);
+  for (let y = 0; y < TILE; y += 4) ctx.fillRect(TILE * 40, y, TILE, 1);
+  ctx.fillStyle = '#9aa3b8';
+  ctx.fillRect(TILE * 40 + 5, 1, 6, 2); // head
+  ctx.fillStyle = '#e4f5fd';
+  for (const [dx, dy] of [[5, 4], [8, 5], [11, 4], [6, 8], [10, 9], [8, 12]] as const) {
+    ctx.fillRect(TILE * 40 + dx, dy, 1, 2); // droplets
+  }
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.magFilter = THREE.NearestFilter;

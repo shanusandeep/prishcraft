@@ -15,6 +15,7 @@ export class UI {
   onEat?: (kind: 'carrot' | 'juice' | 'brew') => void;
 
   private slots: HTMLButtonElement[] = [];
+  private slotCounts: HTMLSpanElement[] = [];
   private toastEl = document.getElementById('toast')!;
   private toastTimer: number | undefined;
   private dialogueTimer: number | undefined;
@@ -38,6 +39,10 @@ export class UI {
         key.textContent = `${(i + 1) % 10}`;
         slot.appendChild(key);
       }
+      const count = document.createElement('span');
+      count.className = 'count';
+      slot.appendChild(count);
+      this.slotCounts.push(count);
       slot.addEventListener('click', () => this.onSelect?.(i));
       hotbar.appendChild(slot);
       this.slots.push(slot);
@@ -98,6 +103,20 @@ export class UI {
     return PLACEABLE[this.selected];
   }
 
+  /** Survival inventory: show how many of each block you've gathered. */
+  refreshCounts(state: GameState): void {
+    PLACEABLE.forEach((id, i) => {
+      if (id === 5) { // water is magic — always free
+        this.slotCounts[i].textContent = '∞';
+        this.slots[i].classList.remove('empty');
+        return;
+      }
+      const have = state.resources[id] ?? 0;
+      this.slotCounts[i].textContent = have > 99 ? '99+' : String(have);
+      this.slots[i].classList.toggle('empty', have <= 0);
+    });
+  }
+
   // ---------- messages ----------
 
   private iconCache = new Map<number, string>();
@@ -123,7 +142,13 @@ export class UI {
     document.getElementById('quest')!.innerHTML = html;
   }
 
-  showDialogue(name: string, color: string, line: string, hearts: number): void {
+  showDialogue(
+    name: string,
+    color: string,
+    line: string,
+    hearts: number,
+    replies: Array<{ label: string; quiet?: boolean; onPick: () => void }> = [],
+  ): void {
     const box = document.getElementById('dialogue')!;
     const nameEl = document.getElementById('dlg-name')!;
     nameEl.textContent = name;
@@ -131,9 +156,26 @@ export class UI {
     document.getElementById('dlg-hearts')!.textContent =
       hearts > 0 ? '❤️'.repeat(Math.min(hearts, 8)) + (hearts > 8 ? ` ×${hearts}` : '') : '';
     document.getElementById('dlg-line')!.textContent = line;
+
+    const repliesEl = document.getElementById('dlg-replies')!;
+    repliesEl.innerHTML = '';
+    for (const reply of replies) {
+      const chip = document.createElement('button');
+      chip.className = 'reply-chip' + (reply.quiet ? ' quiet' : '');
+      chip.textContent = reply.label;
+      chip.addEventListener('click', () => reply.onPick());
+      repliesEl.appendChild(chip);
+    }
+
     box.hidden = false;
     window.clearTimeout(this.dialogueTimer);
-    this.dialogueTimer = window.setTimeout(() => { box.hidden = true; }, 5200);
+    // with replies, hang around longer so the kid can choose
+    this.dialogueTimer = window.setTimeout(() => { box.hidden = true; }, replies.length ? 16000 : 5200);
+  }
+
+  hideDialogue(): void {
+    window.clearTimeout(this.dialogueTimer);
+    document.getElementById('dialogue')!.hidden = true;
   }
 
   // ---------- items & crafting ----------

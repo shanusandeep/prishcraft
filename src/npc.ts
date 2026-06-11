@@ -45,9 +45,22 @@ export class NPC {
     this.pos.set(def.spot[0], 13, def.spot[1]);
   }
 
-  update(dt: number, world: World, playerPos: THREE.Vector3): void {
+  update(dt: number, world: World, playerPos: THREE.Vector3, isNight = false): void {
     const distToPlayer = this.pos.distanceTo(playerPos);
     let moving = false;
+
+    // at night, head home and stay in
+    if (isNight && this.def.indoor) {
+      const [ix, iz] = this.def.indoor;
+      const d = Math.hypot(ix - this.pos.x, iz - this.pos.z);
+      if (d > 25) {
+        this.pos.set(ix, this.pos.y, iz); // pop home when far (they know shortcuts)
+      } else if (d > 0.6) {
+        this.target = { x: ix, z: iz };
+      } else {
+        this.target = null;
+      }
+    }
 
     if (this.target) {
       const dx = this.target.x - this.pos.x;
@@ -71,8 +84,8 @@ export class NPC {
           moving = true;
         }
       }
-    } else if (distToPlayer > 4.5) {
-      // don't wander off mid-conversation
+    } else if (!(isNight && this.def.indoor) && distToPlayer > 4.5) {
+      // don't wander off mid-conversation (and stay in at night)
       this.wait -= dt;
       if (this.wait <= 0) {
         this.target = {

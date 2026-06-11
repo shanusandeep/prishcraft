@@ -23,10 +23,10 @@ function fill(world: World, x1: number, y1: number, z1: number, x2: number, y2: 
  */
 export function buildVillage(world: World): void {
   if (world.data.includes(PUMPKIN)) return;
-  cottage(world, 21, 8, 'E', 12);
+  cottage(world, 19, 8, 'E', 12);
   cottage(world, 38, 8, 'W', 12);
-  world.set(23, 13, 15, CHEST); // a little treasure between the cottages
-  world.set(41, 13, 15, CHEST);
+  world.set(28, 13, 12, CHEST); // a little treasure between the cottages
+  world.set(36, 13, 12, CHEST);
   // market stall by the path
   fill(world, 27, 13, 8, 29, 17, 10, AIR);
   for (const [px, pz] of [[27, 8], [29, 8], [27, 10], [29, 10]] as const) {

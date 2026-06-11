@@ -1,8 +1,8 @@
 import './style.css';
 import * as THREE from 'three';
-import { AIR, BLOCKS, WATER, VINE, CARROT, PUMPKIN, CHEST, CRYSTAL, TIMBER, LANTERN, BLOSSOM, isSolid } from './blocks';
+import { AIR, BLOCKS, WATER, VINE, CARROT, PUMPKIN, CHEST, CRYSTAL, TIMBER, LANTERN, BLOSSOM, BED, isSolid } from './blocks';
 import { World } from './world';
-import { generateIsland, findSpawn, buildIslandPortal, floraPass, cropsPass, treasurePass, Gate } from './terrain';
+import { generateIsland, findSpawn, buildIslandPortal, floraPass, cropsPass, treasurePass, villagePlots, burrowSpot, Gate } from './terrain';
 import { Elf, Mermaid, findMermaidSpot } from './creatures';
 import { generateCastleRealm, CASTLE_GATE, CASTLE_SPAWN } from './castle';
 import { VoxelRenderer } from './mesher';
@@ -14,7 +14,7 @@ import { TouchControls, isTouchDevice } from './touch';
 import { Particles } from './effects';
 import { UI } from './ui';
 import { NPC } from './npc';
-import { CHARACTERS, TRADERS, VILLAGERS } from './characters';
+import { CHARACTERS, TRADERS, FAMILIES, WEASLEYS, CharacterDef } from './characters';
 import { RECIPES, Recipe, canCraft, craft, defaultState, MAX_HEALTH, FOOD_VALUE } from './state';
 import { writeSave, readSave, decodeWorldInto, encodeWorld, clearSave } from './save';
 
@@ -56,15 +56,17 @@ let dome: THREE.Mesh;
   scene.add(dome);
 }
 
-scene.add(new THREE.HemisphereLight(0xcfe8ff, 0xffe2c9, 0.95));
+const hemi = new THREE.HemisphereLight(0xcfe8ff, 0xffe2c9, 0.95);
+scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff2dd, 0.9);
 sun.position.set(40, 70, 25);
 scene.add(sun);
 
 // drifting marshmallow clouds
 const clouds: Array<{ group: THREE.Group; speed: number }> = [];
+const cloudMat = new THREE.MeshLambertMaterial({ color: 0xffffff, transparent: true, opacity: 0.92 });
 {
-  const mat = new THREE.MeshLambertMaterial({ color: 0xffffff, transparent: true, opacity: 0.92 });
+  const mat = cloudMat;
   for (let i = 0; i < 10; i++) {
     const group = new THREE.Group();
     const puffs = 2 + Math.floor(Math.random() * 2);
@@ -151,18 +153,38 @@ const npcs: NPC[] = [...CHARACTERS, ...TRADERS].map((def) => {
 });
 npcRoot.visible = state.where === 'castle';
 
-// the spawn-village folk: Wanda by the plaza, Sprout at the farm, Bram on the west street
+// the spawn-village folk: eight wizarding families plus the Weasleys at the Burrow
 let islandNpcs: NPC[] = [];
+const npcFamily = new Map<string, string>(); // member name -> surname
 function placeIslandVillagers(): void {
   for (const npc of islandNpcs) scene.remove(npc.group);
-  const offsets: Array<[number, number]> = [[3.5, 1.5], [11.5, 10.5], [-12.5, 0.5]];
-  islandNpcs = VILLAGERS.map((def, i) => {
-    const npc = new NPC({ ...def, spot: [spawn.x + offsets[i][0], spawn.z + offsets[i][1]] });
+  islandNpcs = [];
+  npcFamily.clear();
+  const sx = Math.floor(spawn.x), sz = Math.floor(spawn.z);
+  const plots = villagePlots(sx, sz);
+  const addMember = (def: CharacterDef, home: { x: number; z: number }, jitter: number) => {
+    const npc = new NPC({
+      ...def,
+      spot: [home.x + 3.5 + (Math.random() - 0.5) * jitter, home.z + 8 + (Math.random() - 0.5) * jitter],
+      indoor: [home.x + 3.5, home.z + 3.5],
+    });
     npc.pos.y = spawn.y;
     scene.add(npc.group);
     npc.group.visible = state.where === 'island';
-    return npc;
+    islandNpcs.push(npc);
+  };
+  FAMILIES.forEach((family, i) => {
+    const plot = plots[i % plots.length];
+    for (const member of family.members) {
+      npcFamily.set(member.name, family.surname);
+      addMember(member, plot, 8);
+    }
   });
+  const burrow = burrowSpot(sx, sz);
+  for (const weasley of WEASLEYS.members) {
+    npcFamily.set(weasley.name, WEASLEYS.surname);
+    addMember(weasley, burrow, 10);
+  }
 }
 placeIslandVillagers();
 
@@ -186,6 +208,7 @@ const ui = new UI(atlas, touch);
 if (saved?.slot !== undefined) ui.select(saved.slot);
 ui.setItems(state);
 ui.renderCraft(state);
+ui.refreshCounts(state);
 ui.setFlyButtonVisible(touch && state.items.broom);
 
 const particles = new Particles(scene);
@@ -206,6 +229,7 @@ function markDirty(): void {
   saveTimer = window.setTimeout(saveNow, 2500); // big worlds take a moment to encode
 }
 function saveNow(): void {
+  state.timeOfDay = timeOfDay;
   writeSave({
     v: 2,
     seed,
@@ -296,6 +320,13 @@ function openChest(): void {
   } else if (roll < 0.32) {
     state.foods!.juice++;
     msg = '🧃 A Pumpkin Juice!';
+  } else if (roll < 0.55) {
+    // rare decorative blocks you can't mine anywhere else
+    const decor = [21, 22, 23, 24, 25, 26, 27, 28, 29, 31, 32, 33, 34, 35, 36, 37];
+    const block = decor[Math.floor(Math.random() * decor.length)];
+    const count = 4 + Math.floor(Math.random() * 4);
+    state.resources[block] = (state.resources[block] ?? 0) + count;
+    msg = `${count}× ${BLOCKS[block].name}!`;
   } else {
     const bundles: Array<[number, number]> = [[CRYSTAL, 3], [TIMBER, 3], [LANTERN, 2], [BLOSSOM, 3], [CARROT, 3], [PUMPKIN, 2]];
     const [block, count] = bundles[Math.floor(Math.random() * bundles.length)];
@@ -305,6 +336,7 @@ function openChest(): void {
   ui.toast('🎁 ' + msg);
   ui.setItems(state);
   ui.renderCraft(state);
+  ui.refreshCounts(state);
   updateGoal();
 }
 
@@ -335,6 +367,7 @@ function doBreak(): void {
   if (state.items.wand) particles.burst(hit.x + 0.5, hit.y + 0.5, hit.z + 0.5, 0xf0a6e8, 5);
   state.resources[hit.id] = (state.resources[hit.id] ?? 0) + 1;
   ui.renderCraft(state);
+  ui.refreshCounts(state);
   updateGoal();
   markDirty();
 }
@@ -349,8 +382,17 @@ function doPlace(): void {
   if (existing !== AIR && existing !== WATER) return;
   const id = ui.selectedBlockId();
   if (isSolid(id) && player.intersectsBlock(x, y, z)) return; // not inside yourself!
+  // survival rules: you place what you've gathered (water is magic, always free)
+  if (id !== WATER) {
+    if ((state.resources[id] ?? 0) <= 0) {
+      ui.toast(`No ${BLOCKS[id].name} in your pouch — mine some first! ⛏️`);
+      return;
+    }
+    state.resources[id]!--;
+  }
   world.set(x, y, z, id);
   voxels.blockChanged(x, z);
+  ui.refreshCounts(state);
   markDirty();
 }
 
@@ -360,6 +402,7 @@ function craftRecipe(recipe: Recipe): void {
   if (!craft(state, recipe)) return;
   ui.renderCraft(state);
   ui.setItems(state);
+  ui.refreshCounts(state);
   updateGoal();
   saveNow();
   if (recipe.id === 'wand') {
@@ -413,88 +456,210 @@ function nearestTalkable(): Talkable | null {
   return best;
 }
 
+/** +1 heart and a sparkle for whoever we're chatting with. */
+function bondWith(name: string, x: number, y: number, z: number, color = 0xff6b9d, amount = 1): number {
+  state.friendship[name] = (state.friendship[name] ?? 0) + amount;
+  particles.burst(x, y, z, color, 4 + amount * 2);
+  markDirty();
+  return state.friendship[name];
+}
+
+const bye = { label: 'Bye! 👋', quiet: true, onPick: () => ui.hideDialogue() };
+
 function talk(): void {
+  // a bed at night means sleep, not chat
+  const aimed = targetBlock();
+  if (aimed && world.get(aimed.x, aimed.y, aimed.z) === BED) {
+    trySleep();
+    return;
+  }
+
   const who = nearestTalkable();
   if (!who) return;
 
   if (who.kind === 'elf') {
-    state.elfMode = (state.elfMode ?? 'follow') === 'follow' ? 'stay' : 'follow';
-    state.friendship['Pip'] = (state.friendship['Pip'] ?? 0) + 1;
-    const line = state.elfMode === 'follow' ? elf.def.followLine : elf.def.stayLine;
-    ui.showDialogue('Pip', elf.def.nameColor, line, state.friendship['Pip']);
-    particles.burst(elf.pos.x, elf.pos.y + 1.2, elf.pos.z, 0xff6b9d, 4);
-    markDirty();
+    const hearts = state.friendship['Pip'] ?? 0;
+    const mode = state.elfMode ?? 'follow';
+    ui.showDialogue('Pip', elf.def.nameColor,
+      mode === 'follow' ? 'Pip is following! Where to, friend?' : 'Pip is waiting right here, like Pip promised!',
+      hearts, [
+        {
+          label: mode === 'follow' ? 'Stay here, Pip' : 'Follow me, Pip!',
+          onPick: () => {
+            state.elfMode = mode === 'follow' ? 'stay' : 'follow';
+            const h = bondWith('Pip', elf.pos.x, elf.pos.y + 1.2, elf.pos.z);
+            ui.showDialogue('Pip', elf.def.nameColor,
+              state.elfMode === 'follow' ? elf.def.followLine : elf.def.stayLine, h, [bye]);
+          },
+        },
+        {
+          label: "Who's a good elf?",
+          onPick: () => {
+            const h = bondWith('Pip', elf.pos.x, elf.pos.y + 1.2, elf.pos.z, 0xff6b9d, 2);
+            ui.showDialogue('Pip', elf.def.nameColor, 'Pip is!! Pip is a good elf!! Oh, happy day!', h, [bye]);
+          },
+        },
+        bye,
+      ]);
     return;
   }
 
   if (who.kind === 'mermaid') {
-    state.friendship['Marina'] = (state.friendship['Marina'] ?? 0) + 1;
     const line = mermaid.def.lines[mermaid.lineIndex % mermaid.def.lines.length];
     mermaid.lineIndex++;
-    ui.showDialogue('Marina', mermaid.def.nameColor, line, state.friendship['Marina']);
-    particles.burst(mermaid.pos.x, mermaid.pos.y + 1.6, mermaid.pos.z, 0x7fd4f0, 6);
-    markDirty();
+    const hearts = bondWith('Marina', mermaid.pos.x, mermaid.pos.y + 1.6, mermaid.pos.z, 0x7fd4f0);
+    ui.showDialogue('Marina', mermaid.def.nameColor, line, hearts, [
+      { label: 'Tell me more! 🌊', onPick: () => talk() },
+      bye,
+    ]);
     return;
   }
 
   const npc = who.npc;
   const def = npc.def;
-  const hearts = (state.friendship[def.name] ?? 0);
+  const sparkle = () => bondWith(def.name, npc.pos.x, npc.pos.y + 1.6, npc.pos.z);
+  const moreReply = { label: 'Tell me more!', onPick: () => talk() };
 
-  // plain chatters (like Wanda) just cycle their lines
-  if (!def.trade && !def.wish) {
-    state.friendship[def.name] = hearts + 1;
-    ui.showDialogue(def.name, def.nameColor, def.lines[npc.lineIndex % def.lines.length], state.friendship[def.name]);
-    npc.lineIndex++;
-    particles.burst(npc.pos.x, npc.pos.y + 1.6, npc.pos.z, 0xff6b9d, 4);
-    markDirty();
-    return;
-  }
+  // family bonus: befriend everyone in a household → a gift chest appears
+  const checkFamilyGift = () => {
+    const surname = npcFamily.get(def.name);
+    if (!surname || state.familyGifts!.includes(surname)) return;
+    const family = surname === WEASLEYS.surname ? WEASLEYS : FAMILIES.find((f) => f.surname === surname);
+    if (!family) return;
+    if (family.members.every((m) => (state.friendship[m.name] ?? 0) >= 3)) {
+      state.familyGifts!.push(surname);
+      const gx = Math.floor(npc.pos.x) + 1, gz = Math.floor(npc.pos.z) + 1;
+      const gy = world.surfaceY(gx, gz);
+      world.set(gx, gy + 1, gz, CHEST);
+      voxels.blockChanged(gx, gz);
+      ui.toast(`💝 The ${surname} family adores you! They left you a gift chest!`);
+      particles.burst(npc.pos.x, npc.pos.y + 1.8, npc.pos.z, 0xffd24a, 20);
+    }
+  };
 
-  // shopkeepers: a repeatable trade instead of a wish
+  // shopkeepers: the trade is now a question, not automatic
   if (def.trade) {
     const t = def.trade;
-    state.friendship[def.name] = hearts + 1;
     const have = state.resources[t.takesBlock] ?? 0;
+    const hearts = sparkle();
+    checkFamilyGift();
     if (have >= t.takesCount) {
-      state.resources[t.takesBlock] = have - t.takesCount;
-      state.foods![t.gives]++;
-      ui.showDialogue(def.name, def.nameColor, t.thanks, state.friendship[def.name]);
-      particles.burst(npc.pos.x, npc.pos.y + 1.6, npc.pos.z, 0xffe27a, 10);
-      ui.setItems(state);
-      ui.renderCraft(state);
+      ui.showDialogue(def.name, def.nameColor,
+        `Trade ${t.takesCount}× ${BLOCKS[t.takesBlock].name} for one ${t.givesName}?`, hearts, [
+          {
+            label: 'Yes please! ✨',
+            onPick: () => {
+              state.resources[t.takesBlock] = (state.resources[t.takesBlock] ?? 0) - t.takesCount;
+              state.foods![t.gives]++;
+              ui.showDialogue(def.name, def.nameColor, t.thanks, state.friendship[def.name] ?? 0, [bye]);
+              particles.burst(npc.pos.x, npc.pos.y + 1.6, npc.pos.z, 0xffe27a, 10);
+              ui.setItems(state);
+              ui.renderCraft(state);
+              ui.refreshCounts(state);
+              markDirty();
+            },
+          },
+          { label: 'Not now', quiet: true, onPick: () => ui.hideDialogue() },
+        ]);
     } else {
-      ui.showDialogue(def.name, def.nameColor, def.lines[npc.lineIndex % def.lines.length], state.friendship[def.name]);
+      ui.showDialogue(def.name, def.nameColor, def.lines[npc.lineIndex % def.lines.length], hearts, [moreReply, bye]);
       npc.lineIndex++;
     }
-    markDirty();
     return;
   }
 
-  const wish = def.wish!;
-  const wishDone = state.wishesDone.includes(def.name);
-
-  if (!wishDone && (state.resources[wish.block] ?? 0) >= wish.count) {
-    // grant the wish
-    state.resources[wish.block] -= wish.count;
-    state.wishesDone.push(def.name);
-    state.friendship[def.name] = hearts + 5;
-    ui.showDialogue(def.name, def.nameColor, wish.thanks, state.friendship[def.name]);
-    particles.burst(npc.pos.x, npc.pos.y + 1.6, npc.pos.z, 0xff6b9d, 18);
-    ui.renderCraft(state);
-  } else if (!wishDone && npc.lineIndex >= 1) {
-    // after a couple of chats, they share their wish
-    state.friendship[def.name] = hearts + 1;
-    ui.showDialogue(def.name, def.nameColor, wish.ask, state.friendship[def.name]);
-    particles.burst(npc.pos.x, npc.pos.y + 1.6, npc.pos.z, 0xff6b9d, 4);
-  } else {
-    state.friendship[def.name] = hearts + 1;
-    ui.showDialogue(def.name, def.nameColor, def.lines[npc.lineIndex % def.lines.length], state.friendship[def.name]);
-    npc.lineIndex++;
-    particles.burst(npc.pos.x, npc.pos.y + 1.6, npc.pos.z, 0xff6b9d, 4);
+  if (def.wish) {
+    const wish = def.wish;
+    const wishDone = state.wishesDone.includes(def.name);
+    if (!wishDone && (state.resources[wish.block] ?? 0) >= wish.count) {
+      const hearts = state.friendship[def.name] ?? 0;
+      ui.showDialogue(def.name, def.nameColor, wish.ask, hearts, [
+        {
+          label: `Give ${wish.count}× ${BLOCKS[wish.block].name} 💝`,
+          onPick: () => {
+            state.resources[wish.block] -= wish.count;
+            state.wishesDone.push(def.name);
+            const h = bondWith(def.name, npc.pos.x, npc.pos.y + 1.6, npc.pos.z, 0xff6b9d, 5);
+            ui.showDialogue(def.name, def.nameColor, wish.thanks, h, [bye]);
+            ui.renderCraft(state);
+            ui.refreshCounts(state);
+            checkFamilyGift();
+            updateGoal();
+          },
+        },
+        { label: 'Maybe later', quiet: true, onPick: () => ui.hideDialogue() },
+      ]);
+      return;
+    }
+    if (!wishDone && npc.lineIndex >= 1) {
+      const hearts = sparkle();
+      ui.showDialogue(def.name, def.nameColor, wish.ask, hearts, [
+        { label: "I'll find them! 🔍", onPick: () => { ui.hideDialogue(); ui.toast(`🔍 ${def.name} needs ${wish.count}× ${BLOCKS[wish.block].name}!`); } },
+        { label: 'Maybe later', quiet: true, onPick: () => ui.hideDialogue() },
+      ]);
+      updateGoal();
+      return;
+    }
   }
+
+  // everyone else: friendly chatter with replies
+  const hearts = sparkle();
+  checkFamilyGift();
+  ui.showDialogue(def.name, def.nameColor, def.lines[npc.lineIndex % def.lines.length], hearts, [moreReply, bye]);
+  npc.lineIndex++;
   updateGoal();
-  markDirty();
+}
+
+// ---------- day & night ----------
+
+let timeOfDay = state.timeOfDay ?? 0.1; // 0..1; ~0.1 morning, ~0.6 deep night
+const DAY_CYCLE = 480; // seconds for a full day
+let daylight = 1;
+let nudgedTonight = false;
+
+const fogDay = new THREE.Color(0xffe9f3);
+const fogNight = new THREE.Color(0x141733);
+const skyNightTint = new THREE.Color(0x2a2d5e);
+const skyDayTint = new THREE.Color(0xffffff);
+
+function applyDayNight(dt: number): void {
+  timeOfDay = (timeOfDay + dt / DAY_CYCLE) % 1;
+  daylight = Math.max(0, Math.min(1, Math.sin(timeOfDay * Math.PI * 2) * 1.6 + 0.45));
+  sun.intensity = 0.12 + 0.78 * daylight;
+  hemi.intensity = 0.3 + 0.65 * daylight;
+  (scene.fog as THREE.Fog).color.lerpColors(fogNight, fogDay, daylight);
+  (dome.material as THREE.MeshBasicMaterial).color.lerpColors(skyNightTint, skyDayTint, daylight);
+  cloudMat.opacity = 0.92 * Math.max(0.12, daylight);
+
+  if (isNight() && !nudgedTonight) {
+    nudgedTonight = true;
+    ui.toast('🌙 The stars are out — find a bed! 🛏');
+  }
+  if (!isNight() && daylight > 0.6) nudgedTonight = false;
+}
+
+function isNight(): boolean {
+  return daylight < 0.25;
+}
+
+let sleeping = false;
+function trySleep(): void {
+  if (sleeping) return;
+  if (!isNight()) {
+    ui.toast('Not sleepy yet — come back after dark 🌙');
+    return;
+  }
+  sleeping = true;
+  fadeEl.classList.add('show');
+  window.setTimeout(() => {
+    timeOfDay = 0.08; // a fresh morning
+    state.health = MAX_HEALTH;
+    ui.setHearts(state.health);
+    ui.toast('Good morning! ☀️ All hearts restored.');
+    fadeEl.classList.remove('show');
+    sleeping = false;
+    markDirty();
+  }, 700);
 }
 
 // ---------- health, hurting, and snacks ----------
@@ -517,6 +682,7 @@ function eat(kind: 'carrot' | 'juice' | 'brew'): void {
   ui.setHearts(state.health);
   ui.setItems(state);
   ui.renderCraft(state);
+  ui.refreshCounts(state);
   ui.toast(kind === 'carrot' ? '🥕 Crunch! +❤️❤️' : kind === 'juice' ? '🧃 Glug glug! +❤️×5' : '🥤 Butterbrew! All hearts back!');
   particles.burst(player.pos.x, player.pos.y + 1.4, player.pos.z, 0xffa64a, 8);
   markDirty();
@@ -703,6 +869,7 @@ ui.onReset = () => {
   ui.renderCraft(state);
   ui.setFlyButtonVisible(false);
   ui.setDownVisible(false);
+  ui.refreshCounts(state);
   updateGoal();
   saveNow();
   ui.toast('🌱 A brand new island grew!');
@@ -776,11 +943,16 @@ function frame(): void {
     player.vel.set(0, 0, 0);
   }
 
+  applyDayNight(dt);
+
   if (state.where === 'castle') {
-    for (const npc of npcs) npc.update(dt, world, player.pos);
+    for (const npc of npcs) npc.update(dt, world, player.pos, isNight());
   } else {
     mermaid.update(dt, world, player.pos);
-    for (const npc of islandNpcs) npc.update(dt, world, player.pos);
+    for (const npc of islandNpcs) {
+      // only the villagers near you need to think
+      if (npc.pos.distanceToSquared(player.pos) < 70 * 70) npc.update(dt, world, player.pos, isNight());
+    }
   }
   elf.update(dt, world, player.pos, state.elfMode ?? 'follow');
   if (touch) ui.setTalkVisible(!!nearestTalkable());
@@ -818,7 +990,11 @@ window.addEventListener('resize', () => {
 // small debug handle for poking at the game from the console
 (window as unknown as Record<string, unknown>).__spellcraft = {
   world: () => world, player, controls, camera, ui, state, npcs,
-  doBreak, doPlace, talk, toggleFly, travel, craftRecipe, targetBlock,
+  doBreak, doPlace, talk, toggleFly, travel, craftRecipe, targetBlock, trySleep,
+  setTime: (t: number) => { timeOfDay = t; },
+  get timeOfDay() { return timeOfDay; },
+  get daylight() { return daylight; },
+  islandNpcs: () => islandNpcs,
   get islandGate() { return islandGate; },
   get seed() { return seed; },
 };

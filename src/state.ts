@@ -22,6 +22,10 @@ export interface GameState {
   health?: number;
   /** drinks from trading: pumpkin juice and butterbrew */
   foods?: { juice: number; brew: number };
+  /** 0..1 around the clock; ~0.1 is morning, ~0.6 is deep night */
+  timeOfDay?: number;
+  /** families whose gift chest has already appeared */
+  familyGifts?: string[];
 }
 
 export const MAX_HEALTH = 10;
@@ -82,6 +86,8 @@ export function defaultState(): GameState {
     elfMode: 'follow',
     health: MAX_HEALTH,
     foods: { juice: 0, brew: 0 },
+    timeOfDay: 0.1,
+    familyGifts: [],
   };
 }
 
