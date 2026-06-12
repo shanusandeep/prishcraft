@@ -20,6 +20,7 @@ import { Particles } from './effects';
 import { UI } from './ui';
 import { NPC } from './npc';
 import { makeTextSprite } from './avatar';
+import { QUESTIONS, Speaker } from './questions';
 import { CHARACTERS, TRADERS, FAMILIES, WEASLEYS, HAMLET_FOLK, CharacterDef } from './characters';
 import { RECIPES, Recipe, canCraft, craft, defaultState, MAX_HEALTH, FOOD_VALUE } from './state';
 import { writeSave, readSave, decodeWorldInto, encodeWorld, clearSave } from './save';
@@ -599,6 +600,42 @@ function bondWith(name: string, x: number, y: number, z: number, color = 0xff6b9
 
 const bye = { label: 'Bye! 👋', quiet: true, onPick: () => ui.hideDialogue() };
 
+/** "Would you like to ask them something?" — the big question list. */
+function askReply(speaker: Speaker, color: string, x: number, y: number, z: number) {
+  return {
+    label: '❓ Ask a question',
+    onPick: () => {
+      ui.hideDialogue();
+      ui.showQuestions(QUESTIONS.map((qq) => qq.q), (i) => {
+        const ctx = {
+          isNight: isNight(),
+          level: state.level ?? 1,
+          hearts: state.friendship[speaker.name] ?? 0,
+          where: state.where as 'island' | 'castle' | 'shadow',
+          levelName: LEVELS[state.level ?? 1]?.name ?? 'the adventure',
+        };
+        const answer = QUESTIONS[i].answer(speaker, ctx);
+        const hearts = bondWith(speaker.name, x, y, z);
+        ui.showDialogue(speaker.name, color, answer, hearts, [
+          askReply(speaker, color, x, y, z),
+          bye,
+        ]);
+      });
+    },
+  };
+}
+
+function speakerForNpc(def: { name: string; trade?: unknown }): Speaker {
+  const surname = npcFamily.get(def.name);
+  let role: Speaker['role'] = 'villager';
+  if (surname === 'Weasley') role = 'weasley';
+  else if (def.trade) role = 'trader';
+  else if (CHARACTERS.some((c) => c.name === def.name)) role = 'castle-friend';
+  else if (HAMLET_FOLK.some((c) => c.name === def.name)) role = 'hamlet';
+  else if (def.name === 'Biscuit' || def.name === 'Waffles') role = 'dog';
+  return { name: def.name, surname, role };
+}
+
 /** Open or close a door (and its partner blocks above/beside it). */
 function toggleDoor(x: number, y: number, z: number): void {
   const from = world.get(x, y, z);
@@ -658,6 +695,7 @@ function talk(): void {
             ui.showDialogue('Pip', elf.def.nameColor, 'Pip is!! Pip is a good elf!! Oh, happy day!', h, [bye]);
           },
         },
+        askReply({ name: 'Pip', role: 'elf' }, elf.def.nameColor, elf.pos.x, elf.pos.y + 1.2, elf.pos.z),
         bye,
       ]);
     return;
@@ -669,6 +707,7 @@ function talk(): void {
     const hearts = bondWith('Marina', mermaid.pos.x, mermaid.pos.y + 1.6, mermaid.pos.z, 0x7fd4f0);
     ui.showDialogue('Marina', mermaid.def.nameColor, line, hearts, [
       { label: 'Tell me more! 🌊', onPick: () => talk() },
+      askReply({ name: 'Marina', role: 'mermaid' }, mermaid.def.nameColor, mermaid.pos.x, mermaid.pos.y + 1.6, mermaid.pos.z),
       bye,
     ]);
     return;
@@ -678,6 +717,7 @@ function talk(): void {
   const def = npc.def;
   const sparkle = () => bondWith(def.name, npc.pos.x, npc.pos.y + 1.6, npc.pos.z);
   const moreReply = { label: 'Tell me more!', onPick: () => talk() };
+  const npcAsk = askReply(speakerForNpc(def), def.nameColor, npc.pos.x, npc.pos.y + 1.6, npc.pos.z);
 
   // family bonus: befriend everyone in a household → a gift chest appears
   const checkFamilyGift = () => {
@@ -721,7 +761,7 @@ function talk(): void {
           { label: 'Not now', quiet: true, onPick: () => ui.hideDialogue() },
         ]);
     } else {
-      ui.showDialogue(def.name, def.nameColor, def.lines[npc.lineIndex % def.lines.length], hearts, [moreReply, bye]);
+      ui.showDialogue(def.name, def.nameColor, def.lines[npc.lineIndex % def.lines.length], hearts, [moreReply, npcAsk, bye]);
       npc.lineIndex++;
     }
     return;
@@ -764,7 +804,7 @@ function talk(): void {
   // everyone else: friendly chatter with replies (and duels, for good friends)
   const hearts = sparkle();
   checkFamilyGift();
-  const replies = [moreReply, bye];
+  const replies = [moreReply, npcAsk, bye];
   if (hearts >= 3 && !duel && !state.peaceful) {
     replies.splice(1, 0, { label: 'Duel me! ⚡', onPick: () => startDuel(npc) });
   }

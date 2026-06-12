@@ -60,6 +60,10 @@ export class UI {
     document.getElementById('bag')!.addEventListener('click', () => this.toggleCraft());
     document.getElementById('sel-chip')!.addEventListener('click', () => this.toggleInventory(true));
     document.getElementById('inv-close')!.addEventListener('click', () => this.toggleInventory(false));
+    document.getElementById('q-close')!.addEventListener('click', () => this.hideQuestions());
+    document.getElementById('questions')!.addEventListener('click', (e) => {
+      if ((e.target as HTMLElement).id === 'questions') this.hideQuestions();
+    });
     document.getElementById('inventory')!.addEventListener('click', (e) => {
       if ((e.target as HTMLElement).id === 'inventory') this.toggleInventory(false);
     });
@@ -159,6 +163,27 @@ export class UI {
     cnt.className = 'cnt';
     cnt.textContent = `×${have}`;
     chip.append(img, name, cnt);
+  }
+
+  /** The big list of questions you can ask a friend. */
+  showQuestions(questions: string[], onPick: (index: number) => void): void {
+    const panel = document.getElementById('questions')!;
+    const list = document.getElementById('q-list')!;
+    list.innerHTML = '';
+    questions.forEach((q, i) => {
+      const btn = document.createElement('button');
+      btn.textContent = q;
+      btn.addEventListener('click', () => {
+        panel.hidden = true;
+        onPick(i);
+      });
+      list.appendChild(btn);
+    });
+    panel.hidden = false;
+  }
+
+  hideQuestions(): void {
+    document.getElementById('questions')!.hidden = true;
   }
 
   toggleInventory(open?: boolean): void {
