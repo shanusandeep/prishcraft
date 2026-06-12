@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 export const TILE = 16;
-export const TILE_COUNT = 42;
+export const TILE_COUNT = 47;
 
 // Atlas tile layout:
 // 0 meadow-top  1 meadow-side  2 earth  3 pebble  4 sand  5 water
@@ -369,6 +369,54 @@ export function createAtlas(): Atlas {
   ctx.moveTo(TILE * 41 + 12, 12); ctx.lineTo(TILE * 41 + 4, 12);
   ctx.moveTo(TILE * 41 + 4, 12); ctx.lineTo(TILE * 41 + 4, 4);
   ctx.stroke();
+
+  // 42: door — paneled wood with a brass knob
+  fill(42, '#a87c52');
+  ctx.strokeStyle = '#8a6240';
+  ctx.strokeRect(TILE * 42 + 2.5, 1.5, 11, 5);
+  ctx.strokeRect(TILE * 42 + 2.5, 9.5, 11, 5);
+  ctx.fillStyle = '#ffd24a';
+  ctx.fillRect(TILE * 42 + 12, 7, 2, 2); // knob
+
+  // 43: desk top — wood with paper and a quill
+  fill(43, '#b8895e');
+  ctx.fillStyle = '#f2f2fa';
+  ctx.fillRect(TILE * 43 + 3, 4, 6, 8); // paper
+  ctx.fillStyle = '#9b97c9';
+  ctx.fillRect(TILE * 43 + 4, 6, 4, 1);
+  ctx.fillRect(TILE * 43 + 4, 8, 4, 1);
+  ctx.fillStyle = '#4a3b66';
+  ctx.fillRect(TILE * 43 + 11, 3, 1, 6); // quill
+
+  // 44: desk side — drawers with knobs
+  fill(44, '#b8895e');
+  ctx.strokeStyle = '#8a6240';
+  ctx.strokeRect(TILE * 44 + 1.5, 2.5, 13, 5);
+  ctx.strokeRect(TILE * 44 + 1.5, 9.5, 13, 5);
+  ctx.fillStyle = '#ffd24a';
+  ctx.fillRect(TILE * 44 + 7, 4, 2, 2);
+  ctx.fillRect(TILE * 44 + 7, 11, 2, 2);
+
+  // 45: carpet — soft woven pattern
+  fill(45, '#d98ab0');
+  for (let x = 0; x < TILE; x += 4) {
+    for (let y = 0; y < TILE; y += 4) {
+      ctx.fillStyle = (x + y) % 8 === 0 ? '#e8a4c4' : '#cb78a0';
+      ctx.fillRect(TILE * 45 + x + 1, y + 1, 2, 2);
+    }
+  }
+  ctx.strokeStyle = '#f2c4da';
+  ctx.strokeRect(TILE * 45 + 0.5, 0.5, 15, 15);
+
+  // 46: ceiling fan — blades seen from below
+  fill(46, '#f4f6fa');
+  ctx.fillStyle = '#c9cedd';
+  ctx.fillRect(TILE * 46 + 7, 1, 2, 14); // blade pair
+  ctx.fillRect(TILE * 46 + 1, 7, 14, 2);
+  ctx.fillStyle = '#9aa3b8';
+  ctx.fillRect(TILE * 46 + 6, 6, 4, 4); // hub
+  ctx.fillStyle = '#ffd24a';
+  ctx.fillRect(TILE * 46 + 7, 7, 2, 2);
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.magFilter = THREE.NearestFilter;

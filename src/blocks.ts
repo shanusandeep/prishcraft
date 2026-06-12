@@ -30,6 +30,10 @@ export interface BlockDef {
   shape?: 'cross';
   /** render height 0..1 — furniture like beds renders as a low slab */
   height?: number;
+  /** stick to the ceiling instead of the floor (fans) */
+  anchor?: 'top';
+  /** non-solid but still aimable/breakable (carpets) */
+  decor?: boolean;
   /** too hard for bare hands — needs the wand to break */
   hard?: boolean;
   /** representative color for particles and UI fallbacks */
@@ -80,7 +84,18 @@ export const BLOCKS: BlockDef[] = [
   { id: 36, name: 'Sink', tiles: t(39), bucket: 'opaque', solid: true, height: 0.8, color: 0xf4f6fa },
   { id: 37, name: 'Shower', tiles: t(40), bucket: 'opaque', solid: true, color: 0xbfe6f7 },
   { id: 38, name: 'Spider Web', tiles: t(41), bucket: 'cutout', solid: false, shape: 'cross', color: 0xe8e8f0 },
+  { id: 39, name: 'Door', tiles: t(42), bucket: 'opaque', solid: true, color: 0xa87c52 },
+  { id: 40, name: 'Open Door', tiles: t(42), bucket: 'cutout', solid: false, shape: 'cross', color: 0xa87c52 },
+  { id: 41, name: 'Desk', tiles: { top: 43, side: 44, bottom: 14 }, bucket: 'opaque', solid: true, height: 0.75, color: 0xb8895e },
+  { id: 42, name: 'Carpet', tiles: t(45), bucket: 'opaque', solid: false, decor: true, height: 0.08, color: 0xd98ab0 },
+  { id: 43, name: 'Ceiling Fan', tiles: { top: 14, side: 14, bottom: 46 }, bucket: 'opaque', solid: false, decor: true, height: 0.18, anchor: 'top', color: 0xe8e8f0 },
 ];
+
+export const DOOR = 39;
+export const DOOR_OPEN = 40;
+export const DESK = 41;
+export const CARPET = 42;
+export const FAN = 43;
 
 export const BUSH = 19;
 export const SNOW = 20;
@@ -98,13 +113,13 @@ export const PLACEABLE = [
   1, 2, 3, 4, 6, 7, 8, 9, 10, 5,
   11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
   21, 22, 23, 24, 25, 26, 27, 28, 29,
-  31, 32, 33, 34, 35, 36, 37, 38,
+  31, 32, 33, 34, 35, 36, 37, 38, 39, 41, 42, 43,
 ];
 
 export const isSolid = (id: number): boolean => BLOCKS[id]?.solid ?? false;
-/** What the crosshair can aim at: solid blocks plus grass/vines (not water). */
+/** What the crosshair can aim at: solid blocks, grass/vines, carpets/fans (not water). */
 export const isTargetable = (id: number): boolean =>
-  (BLOCKS[id]?.solid ?? false) || BLOCKS[id]?.shape === 'cross';
+  (BLOCKS[id]?.solid ?? false) || BLOCKS[id]?.shape === 'cross' || (BLOCKS[id]?.decor ?? false);
 export const isOpaque = (id: number): boolean => id !== AIR && BLOCKS[id].bucket === 'opaque';
 
 /** Should a face of block `a` be drawn against neighbor `b`? */

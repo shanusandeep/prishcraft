@@ -53,7 +53,12 @@ function getFaceTexture(): THREE.CanvasTexture {
   return faceTexture;
 }
 
-function makeNameSprite(name: string, color: string): THREE.Sprite {
+/** A floating text label (room names, NPC names). */
+export function makeTextSprite(text: string, color: string, width = 2.4): THREE.Sprite {
+  return makeNameSprite(text, color, width);
+}
+
+function makeNameSprite(name: string, color: string, width = 2.4): THREE.Sprite {
   const c = document.createElement('canvas');
   c.width = 256;
   c.height = 64;
@@ -69,7 +74,7 @@ function makeNameSprite(name: string, color: string): THREE.Sprite {
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthWrite: false }));
-  sprite.scale.set(2.4, 0.6, 1);
+  sprite.scale.set(width, width * 0.25, 1);
   sprite.position.y = 2.15;
   return sprite;
 }

@@ -58,6 +58,11 @@ export class UI {
     });
 
     document.getElementById('bag')!.addEventListener('click', () => this.toggleCraft());
+    document.getElementById('sel-chip')!.addEventListener('click', () => this.toggleInventory(true));
+    document.getElementById('inv-close')!.addEventListener('click', () => this.toggleInventory(false));
+    document.getElementById('inventory')!.addEventListener('click', (e) => {
+      if ((e.target as HTMLElement).id === 'inventory') this.toggleInventory(false);
+    });
     document.getElementById('craft-close')!.addEventListener('click', () => this.toggleCraft(false));
     document.getElementById('peaceful-box')!.addEventListener('change', (e) => {
       this.onPeaceful?.((e.target as HTMLInputElement).checked);
@@ -104,9 +109,10 @@ export class UI {
     this.slots.forEach((s, i) => s.classList.toggle('selected', i === this.selected));
     // on phones the hotbar scrolls horizontally — keep the selection in view
     const hotbar = document.getElementById('hotbar')!;
-    if (hotbar.scrollWidth > hotbar.clientWidth) {
+    if (!this.touch && hotbar.scrollWidth > hotbar.clientWidth) {
       this.slots[this.selected].scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
     }
+    if (this.lastState) this.updateSelChip(this.lastState);
   }
 
   selectedBlockId(): number {
@@ -125,6 +131,83 @@ export class UI {
       this.slotCounts[i].textContent = have > 99 ? '99+' : String(have);
       this.slots[i].classList.toggle('empty', have <= 0);
     });
+    this.lastState = state;
+    this.updateSelChip(state);
+    if (!document.getElementById('inventory')!.hidden) this.renderInventory(state);
+  }
+
+  // ---------- the Minecraft-style inventory (replaces the hotbar on touch) ----------
+
+  private lastState: GameState | null = null;
+
+  private updateSelChip(state: GameState): void {
+    const chip = document.getElementById('sel-chip')!;
+    if (!this.touch) {
+      chip.hidden = true;
+      return;
+    }
+    chip.hidden = false;
+    const id = this.selectedBlockId();
+    const def = BLOCKS[id];
+    const have = id === 5 ? '∞' : String(state.resources[id] ?? 0);
+    chip.innerHTML = '';
+    const img = document.createElement('img');
+    img.src = this.atlas.icon(id === 1 ? def.tiles.top : def.tiles.side, 34);
+    const name = document.createElement('span');
+    name.textContent = def.name;
+    const cnt = document.createElement('span');
+    cnt.className = 'cnt';
+    cnt.textContent = `×${have}`;
+    chip.append(img, name, cnt);
+  }
+
+  toggleInventory(open?: boolean): void {
+    const panel = document.getElementById('inventory')!;
+    const next = open ?? panel.hidden;
+    panel.hidden = !next;
+    if (next && this.lastState) this.renderInventory(this.lastState);
+  }
+
+  renderInventory(state: GameState): void {
+    const grid = document.getElementById('inv-grid')!;
+    grid.innerHTML = '';
+    PLACEABLE.forEach((id, i) => {
+      const def = BLOCKS[id];
+      const have = id === 5 ? Infinity : (state.resources[id] ?? 0);
+      const cell = document.createElement('button');
+      cell.className = 'inv-cell' + (have <= 0 ? ' none' : '') + (i === this.selected ? ' sel' : '');
+      cell.title = def.name;
+      const img = document.createElement('img');
+      img.src = this.atlas.icon(id === 1 ? def.tiles.top : def.tiles.side, 44);
+      img.alt = def.name;
+      const cnt = document.createElement('span');
+      cnt.className = 'cnt';
+      cnt.textContent = id === 5 ? '∞' : have > 99 ? '99+' : String(have);
+      cell.append(img, cnt);
+      cell.addEventListener('click', () => {
+        this.onSelect?.(i);
+        this.toggleInventory(false);
+      });
+      grid.appendChild(cell);
+    });
+
+    const items = document.getElementById('inv-items')!;
+    items.innerHTML = '';
+    const itemChips: Array<[string, boolean]> = [
+      ['🪄 Wand', state.items.wand],
+      ['🧹 Broom', state.items.broom],
+      ['🗝️ Key', state.items.key],
+      ['🦌 Patronus', state.items.patronus],
+      [`🥕 ×${state.resources[CARROT] ?? 0}`, (state.resources[CARROT] ?? 0) > 0],
+      [`🧃 ×${state.foods?.juice ?? 0}`, (state.foods?.juice ?? 0) > 0],
+      [`🥤 ×${state.foods?.brew ?? 0}`, (state.foods?.brew ?? 0) > 0],
+    ];
+    for (const [label, owned] of itemChips) {
+      const el = document.createElement('span');
+      el.className = 'inv-item' + (owned ? '' : ' missing');
+      el.textContent = label;
+      items.appendChild(el);
+    }
   }
 
   // ---------- messages ----------

@@ -1,6 +1,6 @@
 import './style.css';
 import * as THREE from 'three';
-import { AIR, BLOCKS, WATER, VINE, CARROT, PUMPKIN, CHEST, CRYSTAL, TIMBER, LANTERN, BLOSSOM, BED, isSolid } from './blocks';
+import { AIR, BLOCKS, WATER, VINE, CARROT, PUMPKIN, CHEST, CRYSTAL, TIMBER, LANTERN, BLOSSOM, BED, DOOR, DOOR_OPEN, isSolid } from './blocks';
 import { World } from './world';
 import { generateIsland, findSpawn, buildIslandPortal, floraPass, cropsPass, treasurePass, renovateVillage, findHamletSites, buildHamlet, villagePlots, burrowSpot, Gate } from './terrain';
 import { Elf, Mermaid, findMermaidSpot } from './creatures';
@@ -19,6 +19,7 @@ import { TouchControls, isTouchDevice } from './touch';
 import { Particles } from './effects';
 import { UI } from './ui';
 import { NPC } from './npc';
+import { makeTextSprite } from './avatar';
 import { CHARACTERS, TRADERS, FAMILIES, WEASLEYS, HAMLET_FOLK, CharacterDef } from './characters';
 import { RECIPES, Recipe, canCraft, craft, defaultState, MAX_HEALTH, FOOD_VALUE } from './state';
 import { writeSave, readSave, decodeWorldInto, encodeWorld, clearSave } from './save';
@@ -130,13 +131,13 @@ let spawn = findSpawn(island);
 floraPass(island, Math.round(3 * island.sizeX / 64), nearGate); // tufts + willows (old saves too)
 cropsPass(island, nearGate); // carrot & pumpkin fields
 treasurePass(island, spawn, nearGate); // spawn village + hidden chests
-if ((state.villageV ?? 0) < 2) {
-  // old saves get the renovation crew: manor houses with hallways and rooms,
-  // real low-profile beds, and brand-new hamlets on the far islands
+if ((state.villageV ?? 0) < 3) {
+  // old saves get the renovation crew: realistic interiors with doors,
+  // desks, carpets, ceiling fans, cozier ceilings — and hamlets stay
   renovateVillage(island, spawn, nearGate);
   for (const site of findHamletSites(island, spawn)) buildHamlet(island, site.x, site.z);
-  state.villageV = 2; // islandEncDirty starts true, so the next save picks this up
-  window.setTimeout(() => ui.toast('🏗️ Grand renovation! Manor houses with hallways — and new hamlets on far islands!'), 2500);
+  state.villageV = 3; // islandEncDirty starts true, so the next save picks this up
+  window.setTimeout(() => ui.toast('🏗️ Home makeover! Real doors, desks, carpets, fans — and room labels!'), 2500);
 }
 let hamletSites = findHamletSites(island, spawn);
 
@@ -253,6 +254,34 @@ function placeIslandVillagers(): void {
   });
 }
 placeIslandVillagers();
+
+// floating room labels inside the village manors ("super realistic")
+const labelsRoot = new THREE.Group();
+scene.add(labelsRoot);
+function buildRoomLabels(): void {
+  while (labelsRoot.children.length) labelsRoot.remove(labelsRoot.children[0]);
+  const sx = Math.floor(spawn.x), sz = Math.floor(spawn.z);
+  const vh = island.surfaceY(sx, sz);
+  for (const plot of villagePlots(sx, sz)) {
+    const x0 = plot.x, x1 = plot.x + 12, z0 = plot.z, z1 = plot.z + 12;
+    const zz = (d: number) => (plot.door === 'N' ? z0 + d : z1 - d) + 0.5;
+    const rooms: Array<[string, number, number, number]> = [
+      ['🛋 Living Room', x0 + 2.5, vh + 3.2, zz(5)],
+      ['🍽 Dining Room', x1 - 1.5, vh + 3.2, zz(5)],
+      ['🍳 Kitchen', x0 + 6.5, vh + 3.2, zz(10)],
+      ['🛏 Bedroom', x0 + 2.5, vh + 8.2, zz(4)],
+      ['🛏 Bedroom', x1 - 1.5, vh + 8.2, zz(4)],
+      ['🛁 Bathroom', x0 + 6.5, vh + 8.2, zz(11)],
+    ];
+    for (const [text, lx, ly, lz] of rooms) {
+      const sprite = makeTextSprite(text, '#7a5cc4', 1.9);
+      sprite.position.set(lx, ly, lz);
+      labelsRoot.add(sprite);
+    }
+  }
+  labelsRoot.visible = state.where === 'island';
+}
+buildRoomLabels();
 
 // Pip the house elf — follows you everywhere
 const elf = new Elf();
@@ -463,7 +492,9 @@ function doBreak(): void {
   if (state.where === 'island') islandEncDirty = true;
   particles.burst(hit.x + 0.5, hit.y + 0.5, hit.z + 0.5, def.color, state.items.wand ? 14 : 10);
   if (state.items.wand) particles.burst(hit.x + 0.5, hit.y + 0.5, hit.z + 0.5, 0xf0a6e8, 5);
-  state.resources[hit.id] = (state.resources[hit.id] ?? 0) + 1;
+  // open doors break back into door blocks
+  const creditId = hit.id === DOOR_OPEN ? DOOR : hit.id;
+  state.resources[creditId] = (state.resources[creditId] ?? 0) + 1;
   ui.renderCraft(state);
   ui.refreshCounts(state);
   updateGoal();
@@ -568,12 +599,38 @@ function bondWith(name: string, x: number, y: number, z: number, color = 0xff6b9
 
 const bye = { label: 'Bye! 👋', quiet: true, onPick: () => ui.hideDialogue() };
 
+/** Open or close a door (and its partner blocks above/beside it). */
+function toggleDoor(x: number, y: number, z: number): void {
+  const from = world.get(x, y, z);
+  const to = from === DOOR ? DOOR_OPEN : DOOR;
+  const queue: Array<[number, number, number]> = [[x, y, z]];
+  let flipped = 0;
+  while (queue.length && flipped < 8) {
+    const [cx, cy, cz] = queue.pop()!;
+    if (world.get(cx, cy, cz) !== from) continue;
+    world.set(cx, cy, cz, to);
+    voxels.blockChanged(cx, cz);
+    flipped++;
+    queue.push([cx, cy + 1, cz], [cx, cy - 1, cz], [cx + 1, cy, cz], [cx - 1, cy, cz], [cx, cy, cz + 1], [cx, cy, cz - 1]);
+  }
+  if (state.where === 'island') islandEncDirty = true;
+  particles.burst(x + 0.5, y + 0.5, z + 0.5, 0xc89c70, 3);
+  markDirty();
+}
+
 function talk(): void {
-  // a bed at night means sleep, not chat
+  // a bed at night means sleep; a door means open/close — not chat
   const aimed = targetBlock();
-  if (aimed && world.get(aimed.x, aimed.y, aimed.z) === BED) {
-    trySleep();
-    return;
+  if (aimed) {
+    const aimedId = world.get(aimed.x, aimed.y, aimed.z);
+    if (aimedId === BED) {
+      trySleep();
+      return;
+    }
+    if (aimedId === DOOR || aimedId === DOOR_OPEN) {
+      toggleDoor(aimed.x, aimed.y, aimed.z);
+      return;
+    }
   }
 
   const who = nearestTalkable();
@@ -749,7 +806,12 @@ function isNight(): boolean {
   return daylight < 0.25;
 }
 
+// a real night's sleep: lie down, the sleep screen appears, a timer runs,
+// and when it ends you may wake to a fresh morning
+const SLEEP_SECONDS = 60;
 let sleeping = false;
+let sleepTimer: number | undefined;
+
 function trySleep(): void {
   if (sleeping) return;
   if (!isNight()) {
@@ -757,17 +819,39 @@ function trySleep(): void {
     return;
   }
   sleeping = true;
-  fadeEl.classList.add('show');
-  window.setTimeout(() => {
-    timeOfDay = 0.08; // a fresh morning
-    state.health = MAX_HEALTH;
-    ui.setHearts(state.health);
-    ui.toast('Good morning! ☀️ All hearts restored.');
-    fadeEl.classList.remove('show');
-    sleeping = false;
-    markDirty();
-  }, 700);
+  controls.unlock();
+  const overlay = document.getElementById('sleep')!;
+  const count = document.getElementById('sleep-count')!;
+  const wake = document.getElementById('wake-btn') as HTMLButtonElement;
+  overlay.hidden = false;
+  wake.disabled = true;
+  let remaining = SLEEP_SECONDS;
+  count.textContent = `Wake up in ${remaining}s`;
+  window.clearInterval(sleepTimer);
+  sleepTimer = window.setInterval(() => {
+    remaining--;
+    if (remaining > 0) {
+      count.textContent = `Wake up in ${remaining}s`;
+    } else {
+      window.clearInterval(sleepTimer);
+      count.textContent = 'The sun is rising… ☀️';
+      wake.disabled = false;
+    }
+  }, 1000);
 }
+
+function wakeUp(): void {
+  if (!sleeping) return;
+  sleeping = false;
+  window.clearInterval(sleepTimer);
+  document.getElementById('sleep')!.hidden = true;
+  timeOfDay = 0.08; // a fresh morning
+  state.health = MAX_HEALTH;
+  ui.setHearts(state.health);
+  ui.toast('Good morning! ☀️ All hearts restored.');
+  markDirty();
+}
+document.getElementById('wake-btn')!.addEventListener('click', wakeUp);
 
 // ---------- health, hurting, and snacks ----------
 
@@ -1221,6 +1305,7 @@ function travel(to: Realm): void {
     enemies.clear();
     npcRoot.visible = to === 'castle';
     mermaid.group.visible = to === 'island';
+    labelsRoot.visible = to === 'island';
     for (const npc of islandNpcs) npc.group.visible = to === 'island';
     player.setFlying(false);
     ui.setDownVisible(false);
@@ -1371,6 +1456,7 @@ ui.onReset = () => {
   npcRoot.visible = false;
   hamletSites = findHamletSites(island, spawn);
   placeIslandVillagers();
+  buildRoomLabels();
   for (const npc of islandNpcs) npc.group.visible = true;
   const s = spawn;
   player.pos.set(s.x, s.y, s.z);
@@ -1398,7 +1484,9 @@ if (touch) {
     fly: toggleFly,
     patronus,
     fight: autoAttack,
+    inventory: () => ui.toggleInventory(),
   });
+  document.body.classList.add('touch'); // hides the bulky hotbar; the inventory replaces it
 }
 
 // ---------- camera follow with terrain occlusion ----------
@@ -1440,6 +1528,13 @@ const clock = new THREE.Clock();
 function frame(): void {
   const dt = Math.min(clock.getDelta(), 0.05);
 
+  if (sleeping) {
+    // the world holds its breath while you sleep
+    renderer.render(scene, camera);
+    requestAnimationFrame(frame);
+    return;
+  }
+
   controls.updateCamera(dt);
 
   const input = controls.input();
@@ -1471,7 +1566,6 @@ function frame(): void {
     }
   }
   elf.update(dt, world, player.pos, state.elfMode ?? 'follow');
-  if (touch) ui.setTalkVisible(!!nearestTalkable());
 
   voxels.update(player.pos.x, player.pos.z, 3); // stream the world in around the player
   dome.position.copy(camera.position); // the sky travels with you
@@ -1490,6 +1584,11 @@ function frame(): void {
   const hit = targetBlock();
   highlight.visible = !!hit;
   if (hit) highlight.position.set(hit.x + 0.5, hit.y + 0.5, hit.z + 0.5);
+  if (touch) {
+    const aimedId = hit ? world.get(hit.x, hit.y, hit.z) : AIR;
+    const interactable = aimedId === BED || aimedId === DOOR || aimedId === DOOR_OPEN;
+    ui.setTalkVisible(!!nearestTalkable() || interactable);
+  }
 
   particles.update(dt);
 

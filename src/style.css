@@ -380,6 +380,112 @@ html, body {
 }
 #hurt.flash { opacity: 1; transition: opacity 0.08s; }
 
+/* ---------- Inventory (replaces the hotbar on touch) ---------- */
+
+body.touch #hotbar { display: none; }
+
+#sel-chip {
+  position: absolute; left: 50%; bottom: 14px;
+  transform: translateX(-50%);
+  pointer-events: auto;
+  display: flex; align-items: center; gap: 8px;
+  border: 2px solid var(--accent-dark); border-radius: 999px;
+  padding: 6px 14px 6px 6px;
+  font: inherit; font-weight: 700; font-size: 13px;
+  color: var(--ink);
+  background: var(--card);
+  box-shadow: 0 4px 16px rgba(120, 90, 180, 0.3);
+  cursor: pointer;
+}
+#sel-chip img { width: 34px; height: 34px; border-radius: 9px; image-rendering: pixelated; }
+#sel-chip .cnt { opacity: 0.7; }
+
+#inventory {
+  position: fixed; inset: 0; z-index: 6;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(91, 74, 120, 0.3);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+#inventory[hidden] { display: none; }
+#inv-card {
+  background: var(--card);
+  border-radius: 20px;
+  padding: 14px 14px 10px;
+  width: min(94vw, 480px);
+  max-height: 90vh;
+  overflow-y: auto;
+  color: var(--ink);
+  box-shadow: 0 10px 40px rgba(120, 90, 180, 0.35);
+  text-align: center;
+}
+#inv-card h2 { margin: 0 0 2px; font-size: 18px; }
+.inv-sub { margin: 0 0 10px; font-size: 11.5px; opacity: 0.7; }
+#inv-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.inv-cell {
+  position: relative;
+  border: 2px solid transparent; border-radius: 10px;
+  background: rgba(255, 255, 255, 0.75);
+  padding: 3px; cursor: pointer;
+}
+.inv-cell img { width: 100%; aspect-ratio: 1; border-radius: 7px; image-rendering: pixelated; display: block; }
+.inv-cell .cnt {
+  position: absolute; bottom: 1px; right: 4px;
+  font-size: 10.5px; font-weight: 700; color: var(--ink);
+  text-shadow: 0 1px 2px rgba(255,255,255,.9);
+}
+.inv-cell.none img { opacity: 0.3; filter: grayscale(0.8); }
+.inv-cell.sel { border-color: var(--accent-dark); background: #fff; }
+#inv-items { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-bottom: 10px; }
+.inv-item {
+  font-size: 12px; font-weight: 700;
+  border-radius: 999px; padding: 6px 11px;
+  background: rgba(255, 255, 255, 0.75); color: var(--ink);
+}
+.inv-item.missing { opacity: 0.45; filter: grayscale(0.6); }
+#inv-close {
+  border: none; border-radius: 999px;
+  padding: 9px 22px; font: inherit; font-size: 14px; font-weight: 700;
+  color: white; cursor: pointer;
+  background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+}
+
+/* the side button column scrolls when crowded */
+#touch-buttons { max-height: 62vh; overflow-y: auto; scrollbar-width: none; }
+#touch-buttons::-webkit-scrollbar { display: none; }
+
+/* ---------- Sleep screen ---------- */
+
+#sleep {
+  position: fixed; inset: 0; z-index: 10;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 10px;
+  background: radial-gradient(ellipse at 50% 30%, #232652 0%, #0b0d24 75%);
+  color: #dcd9f5;
+}
+#sleep[hidden] { display: none; }
+.sleep-stars { font-size: 22px; letter-spacing: 18px; color: #ffd24a; animation: twinkle 2.2s ease-in-out infinite; }
+@keyframes twinkle { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+.sleep-zzz { font-size: 64px; animation: bob 2.6s ease-in-out infinite; }
+@keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+#sleep h2 { margin: 0; font-size: 28px; color: #f2ecff; }
+#sleep p { margin: 0; color: #9b97c9; }
+.btn-like {
+  margin-top: 10px;
+  border: none; border-radius: 999px;
+  padding: 13px 28px;
+  font: inherit; font-size: 17px; font-weight: 700;
+  color: #2a1f04; cursor: pointer;
+  background: linear-gradient(135deg, #ffe28f, #ffd24a 55%, #d9a520);
+  box-shadow: 0 0 24px rgba(255, 210, 74, 0.35);
+}
+.btn-like:disabled { filter: grayscale(0.7) brightness(0.7); cursor: default; box-shadow: none; }
+
 /* ---------- Portal fade ---------- */
 
 #fade {

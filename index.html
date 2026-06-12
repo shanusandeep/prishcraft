@@ -27,6 +27,17 @@
       <div id="dlg-replies"></div>
     </div>
     <div id="hotbar"></div>
+    <button id="sel-chip" hidden></button>
+  </div>
+
+  <div id="inventory" hidden>
+    <div id="inv-card">
+      <h2>🧱 Your Blocks</h2>
+      <p class="inv-sub">Tap a block to build with it. Gray ones still need mining!</p>
+      <div id="inv-grid"></div>
+      <div id="inv-items"></div>
+      <button id="inv-close">Done ✨</button>
+    </div>
   </div>
 
   <div id="craft" hidden>
@@ -43,6 +54,7 @@
     <div id="look-zone"></div>
     <div id="joystick"><div id="knob"></div></div>
     <div id="touch-buttons">
+      <button id="btn-inv">🧱<span>blocks</span></button>
       <button id="btn-talk" hidden>💬<span>talk</span></button>
       <button id="btn-fight" hidden>⚔️<span>fight!</span></button>
       <button id="btn-patronus" hidden>🦌<span>light!</span></button>
@@ -66,6 +78,14 @@
 
   <div id="fade"></div>
   <div id="hurt"></div>
+
+  <div id="sleep" hidden>
+    <div class="sleep-stars" aria-hidden="true">✦ ✧ ⭐ ✧ ✦</div>
+    <div class="sleep-zzz">😴</div>
+    <h2>Sleeping…</h2>
+    <p id="sleep-count">Wake up in 60s</p>
+    <button id="wake-btn" class="btn-like" disabled>Wake up ☀️</button>
+  </div>
 
   <script type="module" src="/src/main.ts"></script>
 </body>
