@@ -217,6 +217,7 @@ html, body {
   /* near the top so the (tall, wrapping) hotbar can never cover it */
   position: absolute; left: 50%; top: 148px;
   transform: translateX(-50%);
+  pointer-events: auto; /* the card lives inside #hud (pointer-events:none) — re-enable taps on its reply chips */
   width: min(92vw, 440px);
   background: var(--card);
   border-radius: 18px;
