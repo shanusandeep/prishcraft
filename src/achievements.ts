@@ -58,4 +58,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   // dedication
   { id: 'streak-3', emoji: '🦉', name: 'Owl Friend', desc: '3-day Daily Owl streak', check: (st) => (st.giftStreak ?? 0) >= 3 },
   { id: 'streak-7', emoji: '🌟', name: 'Faithful Friend', desc: '7-day Daily Owl streak', check: (st) => (st.giftStreak ?? 0) >= 7 },
+
+  // together
+  { id: 'together', emoji: '👫', name: 'Better Together', desc: 'Share an island with a friend', check: (_st, stats) => s(stats, 'coopPlays') >= 1 },
 ];

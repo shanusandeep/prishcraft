@@ -438,6 +438,35 @@ html, body {
 #shadow-row[hidden] { display: none; }
 #world-code { text-align: center; font-size: 11.5px; opacity: 0.65; margin: 0 0 8px; color: var(--ink); }
 
+/* Together Mode + world files, inside the bag */
+#coop-row, #file-row {
+  display: flex; gap: 8px; justify-content: center; margin: 0 0 8px;
+}
+#coop-row[hidden] { display: none; }
+#coop-row button, #file-row button, #coop-leave {
+  border: none; border-radius: 999px;
+  padding: 8px 14px; font: inherit; font-size: 12.5px; font-weight: 700;
+  color: #fff; cursor: pointer;
+}
+#coop-row button {
+  background: linear-gradient(135deg, #e0708a, #b85fd0);
+  box-shadow: 0 3px 12px rgba(224, 112, 160, 0.4);
+}
+#file-row button {
+  background: linear-gradient(135deg, #6ea8dc, #7a86d8);
+  box-shadow: 0 3px 12px rgba(110, 140, 220, 0.35);
+}
+#coop-status {
+  text-align: center; font-size: 13.5px; font-weight: 700;
+  margin: 0 0 6px; color: var(--ink);
+}
+#coop-status[hidden] { display: none; }
+#coop-leave {
+  display: block; margin: 0 auto 8px;
+  background: linear-gradient(135deg, #9a8ab0, #7a6a98);
+}
+#coop-leave[hidden] { display: none; }
+
 /* ---------- the question picker ---------- */
 
 #questions {

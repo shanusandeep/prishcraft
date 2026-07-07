@@ -66,6 +66,17 @@
       <label id="peaceful-row"><input type="checkbox" id="peaceful-box" /> 😴 Peaceful mode — enemies take a nap</label>
       <button id="shadow-row" hidden>🟣 Begin SHADOW-TOUCHED mode…</button>
       <p id="world-code"></p>
+      <div id="coop-row">
+        <button id="coop-host">👫 Friends can visit!</button>
+        <button id="coop-join">🚪 Visit a friend…</button>
+      </div>
+      <p id="coop-status" hidden></p>
+      <button id="coop-leave" hidden>👋 End the visit</button>
+      <div id="file-row">
+        <button id="save-export">📦 World → file</button>
+        <button id="save-import">📂 File → world</button>
+      </div>
+      <input type="file" id="save-file" accept=".json,application/json" hidden />
       <button id="craft-close">Done ✨</button>
     </div>
   </div>

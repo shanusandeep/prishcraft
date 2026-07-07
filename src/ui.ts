@@ -17,6 +17,11 @@ export class UI {
   onPeaceful?: (on: boolean) => void;
   onPatronusChip?: () => void;
   onShadowMode?: () => void;
+  onHostRoom?: () => void;
+  onJoinRoom?: (code: string) => void;
+  onLeaveRoom?: () => void;
+  onExportSave?: () => void;
+  onImportSave?: (file: File) => void;
 
   private slots: HTMLButtonElement[] = [];
   private slotCounts: HTMLSpanElement[] = [];
@@ -69,6 +74,20 @@ export class UI {
       if ((e.target as HTMLElement).id === 'awards') this.toggleAwards(false);
     });
     document.getElementById('shadow-row')!.addEventListener('click', () => this.onShadowMode?.());
+    document.getElementById('coop-host')!.addEventListener('click', () => this.onHostRoom?.());
+    document.getElementById('coop-join')!.addEventListener('click', () => {
+      const code = window.prompt('🚪 Type your friend\'s island code:', '');
+      if (code && code.trim()) this.onJoinRoom?.(code.trim());
+    });
+    document.getElementById('coop-leave')!.addEventListener('click', () => this.onLeaveRoom?.());
+    document.getElementById('save-export')!.addEventListener('click', () => this.onExportSave?.());
+    const saveFile = document.getElementById('save-file') as HTMLInputElement;
+    document.getElementById('save-import')!.addEventListener('click', () => saveFile.click());
+    saveFile.addEventListener('change', () => {
+      const file = saveFile.files?.[0];
+      saveFile.value = '';
+      if (file) this.onImportSave?.(file);
+    });
     document.getElementById('questions')!.addEventListener('click', (e) => {
       if ((e.target as HTMLElement).id === 'questions') this.hideQuestions();
     });
@@ -209,6 +228,15 @@ export class UI {
 
   setWorldCode(code: string): void {
     document.getElementById('world-code')!.textContent = `🌱 World code: ${code} — share it with a friend!`;
+  }
+
+  /** Together Mode status inside the bag: null = not in a room. */
+  setCoopStatus(text: string | null): void {
+    const status = document.getElementById('coop-status')!;
+    status.hidden = !text;
+    status.textContent = text ?? '';
+    document.getElementById('coop-leave')!.hidden = !text;
+    document.getElementById('coop-row')!.hidden = !!text;
   }
 
   /** The big list of questions you can ask a friend. */

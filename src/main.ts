@@ -19,13 +19,14 @@ import { TouchControls, isTouchDevice } from './touch';
 import { Particles } from './effects';
 import { UI } from './ui';
 import { NPC } from './npc';
-import { makeTextSprite } from './avatar';
+import { makeTextSprite, buildAvatar, AvatarRig } from './avatar';
+import { Net, PlayerLook } from './net';
 import { QUESTIONS, Speaker } from './questions';
 import { ACHIEVEMENTS } from './achievements';
 import { VOIDCRYSTAL, MOONSILVER } from './blocks';
 import { CHARACTERS, TRADERS, FAMILIES, WEASLEYS, HAMLET_FOLK, CharacterDef } from './characters';
 import { RECIPES, Recipe, canCraft, craft, defaultState, MAX_HEALTH, FOOD_VALUE } from './state';
-import { writeSave, readSave, decodeWorldInto, encodeWorld, clearSave } from './save';
+import { writeSave, readSave, decodeWorldInto, encodeWorld, clearSave, exportSaveText, importSaveText } from './save';
 
 // ---------- renderer / scene ----------
 
@@ -317,6 +318,11 @@ ui.setFlyButtonVisible(touch && state.items.broom);
 
 const particles = new Particles(scene);
 
+// Together Mode plumbing (handlers live further down, past the world helpers)
+const net = new Net();
+let visiting = false; // we're on a FRIEND's island — never save over home
+let importing = false; // a world file is about to replace the save — don't overwrite it
+
 // highlight box around the targeted block
 const highlight = new THREE.LineSegments(
   new THREE.EdgesGeometry(new THREE.BoxGeometry(1.002, 1.002, 1.002)),
@@ -335,6 +341,7 @@ function markDirty(): void {
   saveTimer = window.setTimeout(saveNow, 2500); // big worlds take a moment to encode
 }
 function saveNow(): void {
+  if (visiting || importing) return; // guard the home save while away or mid-import
   state.timeOfDay = timeOfDay;
   if (islandEncDirty || !islandEncoded) {
     islandEncoded = encodeWorld(island);
@@ -373,6 +380,12 @@ function recipeGoal(recipe: Recipe): string {
 
 function updateGoal(): void {
   const lvl = state.level ?? 1;
+  if (net.active) {
+    ui.setGoal(visiting
+      ? '👫 Visiting a friend\'s island — build together!'
+      : `👫 Friends can visit! Code: <b>${net.code}</b> · enemies nap while they're here`);
+    return;
+  }
   if (state.peaceful && lvl >= 2 && lvl <= 10) {
     ui.setGoal('😴 Peaceful mode — enemies are napping. (Wake them in the 🎒 bag.)');
     return;
@@ -498,6 +511,8 @@ function doBreak(): void {
   if (hit.id === CHEST) {
     world.set(hit.x, hit.y, hit.z, AIR);
     voxels.blockChanged(hit.x, hit.z);
+    if (state.where === 'island') islandEncDirty = true; // opened chests stay opened
+    net.sendEdit(hit.x, hit.y, hit.z, AIR);
     particles.burst(hit.x + 0.5, hit.y + 0.5, hit.z + 0.5, 0xffd24a, 16);
     openChest();
     markDirty();
@@ -511,6 +526,7 @@ function doBreak(): void {
   world.set(hit.x, hit.y, hit.z, AIR);
   voxels.blockChanged(hit.x, hit.z);
   if (state.where === 'island') islandEncDirty = true;
+  net.sendEdit(hit.x, hit.y, hit.z, AIR);
   particles.burst(hit.x + 0.5, hit.y + 0.5, hit.z + 0.5, def.color, state.items.wand ? 14 : 10);
   if (state.items.wand) particles.burst(hit.x + 0.5, hit.y + 0.5, hit.z + 0.5, 0xf0a6e8, 5);
   // open doors break back into door blocks
@@ -546,6 +562,7 @@ function doPlace(): void {
   world.set(x, y, z, id);
   voxels.blockChanged(x, z);
   if (state.where === 'island') islandEncDirty = true;
+  net.sendEdit(x, y, z, id);
   bumpStat('blocksPlaced');
   checkAchievements();
   ui.refreshCounts(state);
@@ -678,6 +695,7 @@ function toggleDoor(x: number, y: number, z: number): void {
     if (world.get(cx, cy, cz) !== from) continue;
     world.set(cx, cy, cz, to);
     voxels.blockChanged(cx, cz);
+    net.sendEdit(cx, cy, cz, to);
     flipped++;
     queue.push([cx, cy + 1, cz], [cx, cy - 1, cz], [cx + 1, cy, cz], [cx - 1, cy, cz], [cx, cy, cz + 1], [cx, cy, cz - 1]);
   }
@@ -838,7 +856,7 @@ function talk(): void {
   const hearts = sparkle();
   checkFamilyGift();
   const replies = [moreReply, npcAsk, bye];
-  if (hearts >= 3 && !duel && !state.peaceful) {
+  if (hearts >= 3 && !duel && !state.peaceful && !net.active) {
     replies.splice(1, 0, { label: 'Duel me! ⚡', onPick: () => startDuel(npc) });
   }
   ui.showDialogue(def.name, def.nameColor, def.lines[npc.lineIndex % def.lines.length], hearts, replies);
@@ -1139,7 +1157,7 @@ const CONCURRENT: Partial<Record<EnemyKind, number>> = {
 function updateCampaign(dt: number): void {
   iframes = Math.max(0, iframes - dt);
   patronusCooldown = Math.max(0, patronusCooldown - dt);
-  if (state.peaceful) {
+  if (state.peaceful || net.active) { // enemies nap while friends visit
     if (enemies.alive() > 0) enemies.clear();
     updateDrainFX(0);
     ui.setBoss(null);
@@ -1209,7 +1227,7 @@ function updateDrainFX(tier: number): void {
 
 /** The ⚔️ button: whack the nearest enemy — no aiming needed (tablet-friendly). */
 function autoAttack(): void {
-  if (state.peaceful) return;
+  if (state.peaceful || net.active) return;
   let best: import('./enemies').Enemy | null = null;
   let bestDist = reach() + 2;
   for (const enemy of enemies.enemies) {
@@ -1511,20 +1529,26 @@ function travel(to: Realm): void {
 }
 
 interface PortalRoute { gate: Gate; to: Realm; locked?: () => string | null }
+
+/** While friends share the island, everyone stays on it. */
+function coopLock(): string | null {
+  return net.active ? 'The portal sleeps while friends are visiting 👫' : null;
+}
+
 function portalRoutes(): PortalRoute[] {
   switch (state.where as Realm) {
     case 'island':
       return [{
         gate: islandGate, to: 'castle',
-        locked: () => (state.items.key ? null : 'The stone ring sleeps… it wants a Portal Key 🗝️'),
+        locked: () => coopLock() ?? (state.items.key ? null : 'The stone ring sleeps… it wants a Portal Key 🗝️'),
       }];
     case 'castle': {
-      const routes: PortalRoute[] = [{ gate: CASTLE_GATE, to: 'island' }];
-      if ((state.level ?? 1) >= 10) routes.push({ gate: CASTLE_SHADOW_GATE, to: 'shadow' });
+      const routes: PortalRoute[] = [{ gate: CASTLE_GATE, to: 'island', locked: coopLock }];
+      if ((state.level ?? 1) >= 10) routes.push({ gate: CASTLE_SHADOW_GATE, to: 'shadow', locked: coopLock });
       return routes;
     }
     case 'shadow':
-      return [{ gate: SHADOW_RETURN_GATE, to: 'castle' }];
+      return [{ gate: SHADOW_RETURN_GATE, to: 'castle', locked: coopLock }];
   }
 }
 
@@ -1606,11 +1630,303 @@ function beginShadowTouched(): void {
 }
 
 function refreshBagExtras(): void {
-  ui.setShadowButton((state.level ?? 1) >= 11 && !state.shadowTouched);
+  ui.setShadowButton((state.level ?? 1) >= 11 && !state.shadowTouched && !net.active);
   ui.setWorldCode(seed.toString(36).toUpperCase());
 }
 
 ui.onShadowMode = beginShadowTouched;
+
+// ---------- Together Mode: share one island across two devices ----------
+
+interface RemoteAvatar {
+  rig: AvatarRig;
+  target: THREE.Vector3;
+  prev: THREE.Vector3;
+  heading: number;
+  walk: number;
+}
+const remotePlayers = new Map<number, RemoteAvatar>();
+
+// each kid gets their own robe colors, spun from their name
+const LOOK_PALETTES = [
+  { body: 0xb9a8ee, legs: 0x8d7ad6, hair: 0x6e5aa8 },
+  { body: 0xf2a6c0, legs: 0xd67a9e, hair: 0x7a4a5e },
+  { body: 0x8fd0a8, legs: 0x5fa87c, hair: 0x4a6e58 },
+  { body: 0xf0c890, legs: 0xd0a05e, hair: 0x8a6a3c },
+  { body: 0x90c8f0, legs: 0x5e90d0, hair: 0x3c5a8a },
+  { body: 0xf0e090, legs: 0xd0b85e, hair: 0x8a7a3c },
+];
+
+function nameHash(text: string): number {
+  let h = 0;
+  for (let i = 0; i < text.length; i++) h = (h * 31 + text.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+
+function myName(forced?: string): string {
+  if (forced) {
+    localStorage.setItem('spellcraft.name', forced);
+    return forced;
+  }
+  let n = localStorage.getItem('spellcraft.name');
+  if (!n) {
+    n = (window.prompt("👋 What's your wizard name?", 'Wizard') || 'Wizard').trim().slice(0, 12) || 'Wizard';
+    localStorage.setItem('spellcraft.name', n);
+  }
+  return n;
+}
+
+function myLook(forced?: string): PlayerLook {
+  const name = myName(forced);
+  return { name, ...LOOK_PALETTES[nameHash(name) % LOOK_PALETTES.length] };
+}
+
+function addRemote(p: { id: number; name: string; body: number; legs: number; hair: number }): void {
+  if (remotePlayers.has(p.id)) return;
+  const rig = buildAvatar({ body: p.body, legs: p.legs, hair: p.hair, name: p.name, nameColor: '#e0708a' });
+  rig.group.position.set(spawn.x, spawn.y + 1, spawn.z);
+  scene.add(rig.group);
+  remotePlayers.set(p.id, {
+    rig,
+    target: new THREE.Vector3(spawn.x, spawn.y + 1, spawn.z),
+    prev: new THREE.Vector3(),
+    heading: 0,
+    walk: 0,
+  });
+}
+
+function removeRemote(id: number): void {
+  const r = remotePlayers.get(id);
+  if (!r) return;
+  scene.remove(r.rig.group);
+  remotePlayers.delete(id);
+}
+
+/** Swap all island-side bookkeeping onto a (different) island world. */
+function adoptIsland(next: World, gate: Gate, spawnPos: { x: number; y: number; z: number } | null): void {
+  island = next;
+  islandGate = gate;
+  spawn = spawnPos ? { ...spawnPos } : findSpawn(island);
+  hamletSites = findHamletSites(island, spawn);
+  placeIslandVillagers();
+  buildRoomLabels();
+  const mspot = findMermaidSpot(island);
+  mermaid.setHome(mspot.x, mspot.z);
+  state.where = 'island';
+  world = island;
+  npcRoot.visible = false;
+  mermaid.group.visible = true;
+  labelsRoot.visible = true;
+  player.pos.set(spawn.x, spawn.y + 1, spawn.z);
+  player.vel.set(0, 0, 0);
+  player.setFlying(false);
+  ui.setDownVisible(false);
+  voxels.setWorld(island, player.pos.x, player.pos.z);
+  elf.teleportTo(player.pos);
+}
+
+let preVisit: { world: string; size: number; gate: Gate; seed: number } | null = null;
+let posTimer = 0;
+let timeSyncTimer = 0;
+
+function enterRoom(): void {
+  enemies.clear();
+  duel = null;
+  ui.setBoss(null);
+  updateDrainFX(0);
+  bumpStat('coopPlays');
+  checkAchievements();
+  refreshBagExtras();
+  updateGoal();
+}
+
+function hostRoom(name?: string): void {
+  if (net.active) return;
+  if (state.where !== 'island') {
+    ui.toast('Hop home through the portal first — friends visit your ISLAND 🏝️');
+    return;
+  }
+  saveNow(); // freshens the cached island encoding too
+  if (islandEncDirty || !islandEncoded) {
+    islandEncoded = encodeWorld(island);
+    islandEncDirty = false;
+  }
+  net.host(myLook(name), {
+    world: islandEncoded,
+    size: island.sizeX,
+    seed,
+    gate: islandGate,
+    spawn: { x: spawn.x, y: spawn.y, z: spawn.z },
+    time: timeOfDay,
+  });
+}
+
+function joinRoom(code: string, name?: string): void {
+  if (net.active) return;
+  net.join(code, myLook(name));
+}
+
+net.onHosted = (code) => {
+  enterRoom();
+  ui.setCoopStatus(`👫 Island open! Friend code: ${code}`);
+  ui.toast(`👫 Your island is open! Friends join with code ${code}`);
+};
+
+net.onJoined = (info) => {
+  // pack the home island safely away before adopting the friend's
+  preVisit = { world: encodeWorld(island), size: island.sizeX, gate: islandGate, seed };
+  visiting = true;
+  seed = info.seed | 0;
+  const next = new World(info.size, info.size);
+  decodeWorldInto(next, info.world);
+  for (const [ex, ey, ez, eid] of info.edits ?? []) next.set(ex, ey, ez, eid);
+  adoptIsland(next, info.gate as Gate, info.spawn);
+  timeOfDay = info.time ?? timeOfDay;
+  for (const p of info.players ?? []) addRemote(p);
+  enterRoom();
+  ui.setCoopStatus(`👫 Visiting! Room code: ${info.code}`);
+  ui.toggleCraft(false);
+  ui.toast("🌟 Welcome to your friend's island! Build together!");
+};
+
+net.onPlayerJoin = (p) => {
+  addRemote(p);
+  ui.toast(`👋 ${p.name} arrived on the island!`);
+  particles.burst(player.pos.x, player.pos.y + 2.5, player.pos.z, 0xffd24a, 16);
+};
+
+net.onPlayerLeave = (id) => {
+  removeRemote(id);
+  ui.toast('👋 A friend headed home!');
+};
+
+net.onPos = (id, x, y, z) => {
+  remotePlayers.get(id)?.target.set(x, y, z);
+};
+
+net.onEdit = (x, y, z, id) => {
+  island.set(x, y, z, id);
+  if (state.where === 'island') voxels.blockChanged(x, z);
+  islandEncDirty = true;
+  markDirty(); // the host keeps everyone's building in the save
+};
+
+net.onTime = (v) => {
+  if (!net.isHost && Number.isFinite(v)) timeOfDay = v;
+};
+
+net.onResync = () => {
+  islandEncoded = encodeWorld(island);
+  islandEncDirty = false;
+  return islandEncoded;
+};
+
+net.onEnd = (why) => {
+  for (const id of [...remotePlayers.keys()]) removeRemote(id);
+  ui.setCoopStatus(null);
+  ui.toast(why);
+  if (visiting && preVisit) {
+    const homeWorld = new World(preVisit.size, preVisit.size);
+    decodeWorldInto(homeWorld, preVisit.world);
+    const homeGate = preVisit.gate;
+    seed = preVisit.seed;
+    visiting = false;
+    preVisit = null;
+    adoptIsland(homeWorld, homeGate, null);
+    islandEncDirty = true;
+    window.setTimeout(() => ui.toast('🏝️ Home sweet home! Everything you gathered came along.'), 2000);
+    saveNow();
+  }
+  visiting = false;
+  preVisit = null;
+  refreshBagExtras();
+  updateGoal();
+};
+
+net.onError = (msg) => ui.toast(msg);
+
+ui.onHostRoom = () => hostRoom();
+ui.onJoinRoom = (code) => joinRoom(code);
+ui.onLeaveRoom = () => net.leave();
+
+/** Per-frame co-op work: stream my position, animate friends, sync the clock. */
+function updateTogether(dt: number): void {
+  if (!net.active) return;
+  posTimer -= dt;
+  if (posTimer <= 0) {
+    posTimer = 0.1;
+    net.sendPos(player.pos.x, player.pos.y, player.pos.z);
+  }
+  if (net.isHost) {
+    timeSyncTimer -= dt;
+    if (timeSyncTimer <= 0) {
+      timeSyncTimer = 4;
+      net.sendTime(timeOfDay);
+    }
+  }
+  for (const r of remotePlayers.values()) {
+    const g = r.rig.group;
+    r.prev.copy(g.position);
+    g.position.lerp(r.target, Math.min(1, 10 * dt));
+    const dx = g.position.x - r.prev.x, dz = g.position.z - r.prev.z;
+    const speed = dt > 0 ? Math.hypot(dx, dz) / dt : 0;
+    if (speed > 0.5) {
+      const target = Math.atan2(dx, dz);
+      let diff = target - r.heading;
+      while (diff > Math.PI) diff -= Math.PI * 2;
+      while (diff < -Math.PI) diff += Math.PI * 2;
+      r.heading += diff * Math.min(1, 10 * dt);
+      g.rotation.y = r.heading;
+    }
+    r.walk += dt * (2 + speed * 2.2);
+    const swing = Math.sin(r.walk * 4) * Math.min(0.7, speed * 0.2);
+    r.rig.armL.rotation.x = swing;
+    r.rig.armR.rotation.x = -swing;
+    r.rig.legL.rotation.x = -swing;
+    r.rig.legR.rotation.x = swing;
+  }
+}
+
+// ---------- world files: pack your whole world into a file ----------
+
+ui.onExportSave = () => {
+  if (visiting) {
+    ui.toast('Head home first — you can only pack YOUR world 🏝️');
+    return;
+  }
+  saveNow();
+  const raw = exportSaveText();
+  if (!raw) {
+    ui.toast('Nothing to pack yet — play a little first!');
+    return;
+  }
+  const blob = new Blob([raw], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `prishcraft-world-${seed.toString(36)}-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  ui.toast('📦 World packed into a file! AirDrop or email it to family.');
+};
+
+ui.onImportSave = (file) => {
+  if (net.active) {
+    ui.toast('Finish the visit first! 👋');
+    return;
+  }
+  if (!window.confirm('Load this world file? Your CURRENT world will be replaced!')) return;
+  void file.text().then((text) => {
+    if (!importSaveText(text)) {
+      ui.toast('Hmm, that file is not a PrishCraft world 🤔');
+      return;
+    }
+    importing = true; // block the goodbye-save from overwriting the imported world
+    ui.toast('📂 World unpacked! Reloading…');
+    window.setTimeout(() => window.location.reload(), 700);
+  });
+};
 
 ui.onPeaceful = (on) => {
   state.peaceful = on;
@@ -1648,6 +1964,10 @@ ui.onCraftToggle = (open) => {
   }
 };
 ui.onReset = () => {
+  if (net.active) {
+    ui.toast('Finish the visit first — tap 👋 in the 🎒 bag!');
+    return;
+  }
   clearSave();
   // shareable seed codes: type a friend's code to grow THEIR island
   const code = window.prompt('🌱 Type a world code to grow a friend\'s island — or leave blank for a surprise:', '');
@@ -1796,9 +2116,10 @@ function frame(): void {
   updateCampaign(dt);
   updateDuel(dt);
   pipFinds(dt);
+  updateTogether(dt);
   if (touch) {
     ui.setPatronusVisible(state.items.patronus && (state.level ?? 1) >= 8);
-    ui.setFightVisible(!state.peaceful && nearestEnemyDist() < 12);
+    ui.setFightVisible(!state.peaceful && !net.active && nearestEnemyDist() < 12);
   }
   checkPortals();
   portalSparkle(dt);
@@ -1843,6 +2164,11 @@ window.addEventListener('resize', () => {
   islandNpcs: () => islandNpcs,
   get islandGate() { return islandGate; },
   get seed() { return seed; },
+  net, hostRoom, joinRoom,
+  leaveRoom: () => net.leave(),
+  remotePlayers: () => remotePlayers,
+  get visiting() { return visiting; },
+  island: () => island,
 };
 
 export {};

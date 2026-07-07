@@ -106,3 +106,22 @@ export function readSave(): SaveData | null {
 export function clearSave(): void {
   localStorage.removeItem(KEY);
 }
+
+/** The raw save as text — for saving the whole world to a file. */
+export function exportSaveText(): string | null {
+  return localStorage.getItem(KEY);
+}
+
+/** Load a world file's text into the save slot (validated first). */
+export function importSaveText(text: string): boolean {
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed && parsed.v === 2 && typeof parsed.seed === 'number' && parsed.state) {
+      localStorage.setItem(KEY, text);
+      return true;
+    }
+  } catch {
+    // fall through — not a world file
+  }
+  return false;
+}
