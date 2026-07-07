@@ -77,6 +77,14 @@ export class Player {
     this.wand.visible = on;
   }
 
+  /** The Star Blade upgrade: the wand blazes silver. */
+  setStarblade(on: boolean): void {
+    const [stick, tip] = this.wand.children as THREE.Mesh[];
+    if (!stick || !tip) return;
+    (stick.material as THREE.MeshLambertMaterial).color.setHex(on ? 0x3a3a4e : 0xa87c52);
+    (tip.material as THREE.MeshBasicMaterial).color.setHex(on ? 0xd9e4f0 : 0xf0a6e8);
+  }
+
   setFlying(on: boolean): void {
     this.flying = on;
     this.broom.visible = on;

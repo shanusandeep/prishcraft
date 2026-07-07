@@ -5,6 +5,7 @@ export interface Items {
   broom: boolean;
   key: boolean;
   patronus: boolean;
+  starblade: boolean;
 }
 
 export interface GameState {
@@ -39,6 +40,17 @@ export interface GameState {
   pipKidnapped?: boolean;
   /** village architecture version (bumps trigger a renovation on old saves) */
   villageV?: number;
+  /** lifetime play statistics (achievements feed on these) */
+  stats?: Record<string, number>;
+  /** achievement ids already earned */
+  achievements?: string[];
+  /** every block id ever collected (the compendium) */
+  collected?: number[];
+  /** the world has been remixed by dark magic (post-victory hardmode) */
+  shadowTouched?: boolean;
+  /** daily owl gift tracking */
+  lastGiftDay?: string;
+  giftStreak?: number;
 }
 
 export const MAX_HEALTH = 10;
@@ -98,12 +110,22 @@ export const RECIPES: Recipe[] = [
       { block: BLOSSOM, count: 2 },
     ],
   },
+  {
+    id: 'starblade',
+    name: 'Star Blade',
+    emoji: '⭐',
+    blurb: 'Forged from shadow ores — hits harder, reaches farther!',
+    needs: [
+      { block: 44, count: 6 }, // Void Crystal
+      { block: 45, count: 4 }, // Moon Silver
+    ],
+  },
 ];
 
 export function defaultState(): GameState {
   return {
     resources: {},
-    items: { wand: false, broom: false, key: false, patronus: false },
+    items: { wand: false, broom: false, key: false, patronus: false, starblade: false },
     friendship: {},
     wishesDone: [],
     where: 'island',
@@ -118,6 +140,11 @@ export function defaultState(): GameState {
     castleVisited: false,
     pipKidnapped: false,
     villageV: 3,
+    stats: {},
+    achievements: [],
+    collected: [],
+    shadowTouched: false,
+    giftStreak: 0,
   };
 }
 

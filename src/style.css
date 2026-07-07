@@ -381,6 +381,63 @@ html, body {
 }
 #hurt.flash { opacity: 1; transition: opacity 0.08s; }
 
+/* ---------- trophies ---------- */
+
+#trophies {
+  border: none; border-radius: 50%;
+  width: 46px; height: 46px;
+  font-size: 20px;
+  background: var(--card);
+  box-shadow: 0 3px 12px rgba(120, 90, 180, 0.25);
+  cursor: pointer;
+}
+#awards {
+  position: fixed; inset: 0; z-index: 6;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(91, 74, 120, 0.3);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+#awards[hidden] { display: none; }
+#awards-card {
+  background: var(--card); border-radius: 20px;
+  padding: 16px 14px 12px;
+  width: min(94vw, 440px); max-height: 88vh; overflow-y: auto;
+  color: var(--ink); text-align: center;
+  box-shadow: 0 10px 40px rgba(120, 90, 180, 0.35);
+}
+#awards-card h2 { margin: 0; font-size: 18px; }
+#awards-count { margin: 2px 0 10px; font-size: 12px; opacity: 0.7; }
+#awards-list { display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; }
+.award {
+  display: flex; align-items: center; gap: 10px;
+  border-radius: 12px; padding: 7px 10px;
+  background: rgba(255, 255, 255, 0.8);
+  text-align: left;
+}
+.award .a-emoji { font-size: 22px; }
+.award b { font-size: 13px; display: block; }
+.award small { font-size: 11px; opacity: 0.75; }
+.award.locked { opacity: 0.45; filter: grayscale(0.8); }
+.award.locked .a-emoji { filter: grayscale(1); }
+#awards-close {
+  border: none; border-radius: 999px; padding: 8px 20px;
+  font: inherit; font-size: 14px; font-weight: 700;
+  color: white; cursor: pointer;
+  background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+}
+
+#shadow-row {
+  display: block; margin: 0 auto 8px;
+  border: none; border-radius: 999px;
+  padding: 9px 18px; font: inherit; font-size: 13.5px; font-weight: 700;
+  color: #f2ecff; cursor: pointer;
+  background: linear-gradient(135deg, #4a2a6a, #1a1a2e);
+  box-shadow: 0 0 18px rgba(164, 74, 224, 0.5);
+}
+#shadow-row[hidden] { display: none; }
+#world-code { text-align: center; font-size: 11.5px; opacity: 0.65; margin: 0 0 8px; color: var(--ink); }
+
 /* ---------- the question picker ---------- */
 
 #questions {

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 export const TILE = 16;
-export const TILE_COUNT = 47;
+export const TILE_COUNT = 49;
 
 // Atlas tile layout:
 // 0 meadow-top  1 meadow-side  2 earth  3 pebble  4 sand  5 water
@@ -417,6 +417,23 @@ export function createAtlas(): Atlas {
   ctx.fillRect(TILE * 46 + 6, 6, 4, 4); // hub
   ctx.fillStyle = '#ffd24a';
   ctx.fillRect(TILE * 46 + 7, 7, 2, 2);
+
+  // 47: void crystal ore — dark stone with purple glints
+  fill(47, '#3a2a52');
+  speckle(47, ['#2e2040', '#463462'], 30);
+  for (const [dx, dy] of [[3, 4], [11, 3], [7, 9], [12, 12], [4, 12]] as const) {
+    px(47, dx, dy, '#a44ae0');
+    px(47, dx + 1, dy, '#c98af0');
+  }
+
+  // 48: moon silver — pale glowing metal veins
+  fill(48, '#d9e4f0');
+  speckle(48, ['#c4d4e8', '#e8f0fa'], 25);
+  ctx.strokeStyle = '#f4f8ff';
+  ctx.beginPath();
+  ctx.moveTo(TILE * 48 + 2, 12); ctx.lineTo(TILE * 48 + 8, 6); ctx.lineTo(TILE * 48 + 14, 9);
+  ctx.stroke();
+  speckle(48, ['#ffffff'], 6);
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.magFilter = THREE.NearestFilter;

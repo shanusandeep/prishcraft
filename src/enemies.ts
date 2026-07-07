@@ -71,6 +71,7 @@ function makeHpBar(): { sprite: THREE.Sprite; draw: (frac: number) => void } {
 export class Enemy {
   def: KindDef;
   hp: number;
+  maxHp: number;
   pos = new THREE.Vector3();
   vel = new THREE.Vector3(); // knockback
   group = new THREE.Group();
@@ -91,9 +92,10 @@ export class Enemy {
   private wings: THREE.Mesh[] = [];
   private legs: THREE.Mesh[] = [];
 
-  constructor(public kind: EnemyKind) {
+  constructor(public kind: EnemyKind, public shadow = false) {
     this.def = KINDS[kind];
-    this.hp = this.def.hp;
+    this.maxHp = this.shadow ? Math.round(this.def.hp * 2.5) : this.def.hp;
+    this.hp = this.maxHp;
     this.buildMesh();
     this.bar = makeHpBar();
     this.bar.sprite.position.y = this.def.size[1] + 0.5;
@@ -104,6 +106,16 @@ export class Enemy {
         this.mats.push(mesh.material as THREE.MeshLambertMaterial);
       }
     });
+    if (this.shadow) {
+      // shadow-touched: darker, purple-tinged, unmistakably WRONG
+      const shade = new THREE.Color(0x4a2a6a);
+      for (const m of this.mats) m.color.lerp(shade, 0.55);
+      for (const seg of this.segments) (seg.material as THREE.MeshLambertMaterial).color.lerp(shade, 0.55);
+    }
+  }
+
+  get label(): string {
+    return this.shadow ? `Shadow ${this.def.label}` : this.def.label;
   }
 
   private box(w: number, h: number, d: number, color: number, x = 0, y = 0, z = 0): THREE.Mesh {
@@ -223,7 +235,7 @@ export class Enemy {
     this.hp -= damage;
     this.flash = 0.15;
     for (const m of this.mats) m.emissive.setHex(0xffffff);
-    this.bar.draw(this.hp / this.def.hp);
+    this.bar.draw(this.hp / this.maxHp);
     const dx = this.pos.x - knockFrom.x, dz = this.pos.z - knockFrom.z;
     const len = Math.hypot(dx, dz) || 1;
     this.vel.x += (dx / len) * 6;
@@ -274,7 +286,7 @@ export class Enemy {
         this.shootCooldown = 3;
         ctx.fireAtPlayer(this.pos, 3);
       }
-      const frac = this.hp / this.def.hp;
+      const frac = this.hp / this.maxHp;
       if (frac < 0.66 && this.summonedAt.indexOf(66) < 0) { this.summonedAt.push(66); ctx.summon('dementor', 2, this.pos); }
       if (frac < 0.33 && this.summonedAt.indexOf(33) < 0) { this.summonedAt.push(33); ctx.summon('deatheater', 2, this.pos); }
     }
@@ -393,8 +405,8 @@ export class EnemyManager {
     return this.enemies.filter((e) => !e.dead && (!kind || e.kind === kind)).length;
   }
 
-  spawn(kind: EnemyKind, x: number, y: number, z: number): Enemy {
-    const enemy = new Enemy(kind);
+  spawn(kind: EnemyKind, x: number, y: number, z: number, shadow = false): Enemy {
+    const enemy = new Enemy(kind, shadow);
     enemy.pos.set(x, y, z);
     enemy.addToScene(this.scene);
     this.enemies.push(enemy);
@@ -408,6 +420,7 @@ export class EnemyManager {
     dt: number,
     ctx: EnemyCtx,
     isSafe: (x: number, z: number) => boolean,
+    shadow = false,
   ): void {
     this.spawnTimer -= dt;
     if (this.spawnTimer > 0 || this.alive() >= want) return;
@@ -421,7 +434,7 @@ export class EnemyManager {
     if (isSafe(x, z)) return;
     const y = world.surfaceY(x, z);
     if (y < 9) return; // no sea spawns
-    this.spawn(kind, x + 0.5, y + 1, z + 0.5);
+    this.spawn(kind, x + 0.5, y + 1, z + 0.5, shadow);
   }
 
   fireBolt(from: THREE.Vector3, toward: THREE.Vector3, spread = 0, friendly = false): void {

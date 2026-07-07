@@ -89,7 +89,13 @@ export const BLOCKS: BlockDef[] = [
   { id: 41, name: 'Desk', tiles: { top: 43, side: 44, bottom: 14 }, bucket: 'opaque', solid: true, height: 0.75, color: 0xb8895e },
   { id: 42, name: 'Carpet', tiles: t(45), bucket: 'opaque', solid: false, decor: true, height: 0.08, color: 0xd98ab0 },
   { id: 43, name: 'Ceiling Fan', tiles: { top: 14, side: 14, bottom: 46 }, bucket: 'opaque', solid: false, decor: true, height: 0.18, anchor: 'top', color: 0xe8e8f0 },
+  // shadow-touched ores: seeded into old stone after the final boss falls
+  { id: 44, name: 'Void Crystal', tiles: t(47), bucket: 'opaque', solid: true, hard: true, color: 0x3a2a52 },
+  { id: 45, name: 'Moon Silver', tiles: t(48), bucket: 'glow', solid: true, hard: true, color: 0xd9e4f0 },
 ];
+
+export const VOIDCRYSTAL = 44;
+export const MOONSILVER = 45;
 
 export const DOOR = 39;
 export const DOOR_OPEN = 40;
@@ -113,7 +119,7 @@ export const PLACEABLE = [
   1, 2, 3, 4, 6, 7, 8, 9, 10, 5,
   11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
   21, 22, 23, 24, 25, 26, 27, 28, 29,
-  31, 32, 33, 34, 35, 36, 37, 38, 39, 41, 42, 43,
+  31, 32, 33, 34, 35, 36, 37, 38, 39, 41, 42, 43, 44, 45,
 ];
 
 export const isSolid = (id: number): boolean => BLOCKS[id]?.solid ?? false;

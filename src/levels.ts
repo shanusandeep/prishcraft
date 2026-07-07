@@ -63,4 +63,26 @@ export const LEVELS: Record<number, LevelDef> = {
     intro: '⚡ LEVEL 10. A dark portal has opened in the castle courtyard. He is waiting.',
   },
   11: { id: 11, name: 'Peace', emoji: '🕊️', realm: 'island', enemy: null, goal: 0, hint: '', intro: '🕊️ PEACE RETURNS TO THE REALM! You did it, hero!' },
+  // ---- Shadow-Touched: the world remixed, the fight renewed ----
+  12: {
+    id: 12, name: 'Shadow Slimes', emoji: '🟣', realm: 'island', enemy: 'slime', goal: 12,
+    hint: 'Twice as tough, twice the bounce. Mine the new Void Crystal ore!',
+    intro: '🟣 SHADOW-TOUCHED! Dark ores hide in old stone — and the slimes came back WRONG.',
+  },
+  13: {
+    id: 13, name: 'Shadow Wolves', emoji: '🌘', realm: 'island', enemy: 'werewolf', goal: 8,
+    hint: 'Shadow wolves hunt in the dark. Forge the Star Blade (🎒)!',
+    intro: '🌘 Level 13! Shadow wolves prowl. The Star Blade recipe is in your bag…',
+  },
+  14: {
+    id: 14, name: 'Shadow Trolls', emoji: '🌑', realm: 'island', enemy: 'troll', goal: 5,
+    hint: 'Enormous. Furious. Very whackable with a Star Blade.',
+    intro: '🌑 Level 14! Shadow Trolls shake the ground. Show them your new blade!',
+  },
+  15: {
+    id: 15, name: "VOLDEMORT'S SHADOW", emoji: '⚡', realm: 'shadow', enemy: 'voldemort', goal: 1,
+    hint: 'He left a shadow behind. End it — for good this time.',
+    intro: '⚡ HE IS BACK. Or… his shadow is. The dark portal hums once more.',
+  },
+  16: { id: 16, name: 'Eternal Peace', emoji: '🌈', realm: 'island', enemy: null, goal: 0, hint: '', intro: '🌈 ETERNAL PEACE! Even the shadows bow to you now, hero of heroes!' },
 };

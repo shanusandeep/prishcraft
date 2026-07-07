@@ -21,6 +21,8 @@ import { UI } from './ui';
 import { NPC } from './npc';
 import { makeTextSprite } from './avatar';
 import { QUESTIONS, Speaker } from './questions';
+import { ACHIEVEMENTS } from './achievements';
+import { VOIDCRYSTAL, MOONSILVER } from './blocks';
 import { CHARACTERS, TRADERS, FAMILIES, WEASLEYS, HAMLET_FOLK, CharacterDef } from './characters';
 import { RECIPES, Recipe, canCraft, craft, defaultState, MAX_HEALTH, FOOD_VALUE } from './state';
 import { writeSave, readSave, decodeWorldInto, encodeWorld, clearSave } from './save';
@@ -103,6 +105,12 @@ state.health = state.health ?? MAX_HEALTH;
 state.foods = state.foods ?? { juice: 0, brew: 0 };
 state.familyGifts = state.familyGifts ?? [];
 state.items.patronus = state.items.patronus ?? false;
+state.items.starblade = state.items.starblade ?? false;
+state.stats = state.stats ?? {};
+state.achievements = state.achievements ?? [];
+state.collected = state.collected ?? Object.keys(state.resources).map(Number).filter((id) => (state.resources[id] ?? 0) > 0);
+state.shadowTouched = state.shadowTouched ?? false;
+state.giftStreak = state.giftStreak ?? 0;
 state.levelKills = state.levelKills ?? 0;
 state.peaceful = state.peaceful ?? false;
 state.castleVisited = state.castleVisited ?? !!saved?.castleWorld;
@@ -376,8 +384,14 @@ function updateGoal(): void {
     else ui.setGoal('⚔️ Level 1: follow the beam of light east — step through the ruin!');
     return;
   }
-  if (lvl >= 11) {
-    ui.setGoal('🕊️ Peace reigns! Build, duel friends at the green, and celebrate ✨');
+  if (lvl === 11) {
+    ui.setGoal(state.shadowTouched
+      ? '🕊️ Peace… for now.'
+      : '🕊️ Peace reigns! Build and celebrate — or dare the 🟣 dark option in your 🎒 bag…');
+    return;
+  }
+  if (lvl >= 16) {
+    ui.setGoal('🌈 ETERNAL PEACE. The realm is yours, hero of heroes ✨');
     return;
   }
   const def = LEVELS[lvl];
@@ -390,7 +404,11 @@ updateGoal();
 // ---------- block targeting and actions ----------
 
 function reach(): number {
-  return state.items.wand ? 12 : 7;
+  return state.items.starblade ? 14 : state.items.wand ? 12 : 7;
+}
+
+function whackDamage(): number {
+  return state.items.starblade ? 4 : state.items.wand ? 2 : 1;
 }
 
 function targetBlock() {
@@ -448,6 +466,8 @@ function openChest(): void {
     msg = `${count}× ${BLOCKS[block].name}!`;
   }
   ui.toast('🎁 ' + msg);
+  bumpStat('chestsOpened');
+  checkAchievements();
   ui.setItems(state);
   ui.renderCraft(state);
   ui.refreshCounts(state);
@@ -464,7 +484,7 @@ function doBreak(): void {
     const camDist = camera.position.distanceTo(player.pos);
     const eh = enemies.rayHit(camera.position.x, camera.position.y, camera.position.z, dir.x, dir.y, dir.z, camDist - 0.6);
     if (eh && eh.enemy.pos.distanceTo(player.pos) < reach() + 2 && (!hit || eh.t < hit.t)) {
-      const dmg = state.items.wand ? 2 : 1;
+      const dmg = whackDamage();
       eh.enemy.hit(dmg, player.pos);
       particles.burst(eh.enemy.pos.x, eh.enemy.pos.y + 1, eh.enemy.pos.z, 0xffffff, 6);
       return;
@@ -496,6 +516,9 @@ function doBreak(): void {
   // open doors break back into door blocks
   const creditId = hit.id === DOOR_OPEN ? DOOR : hit.id;
   state.resources[creditId] = (state.resources[creditId] ?? 0) + 1;
+  bumpStat('blocksBroken');
+  collectBlock(creditId);
+  checkAchievements();
   ui.renderCraft(state);
   ui.refreshCounts(state);
   updateGoal();
@@ -523,6 +546,8 @@ function doPlace(): void {
   world.set(x, y, z, id);
   voxels.blockChanged(x, z);
   if (state.where === 'island') islandEncDirty = true;
+  bumpStat('blocksPlaced');
+  checkAchievements();
   ui.refreshCounts(state);
   markDirty();
 }
@@ -544,11 +569,15 @@ function craftRecipe(recipe: Recipe): void {
     ui.toast(touch ? '🧹 A flying broom! Tap 🧹 to fly!' : '🧹 A flying broom! Press F to fly!');
   } else if (recipe.id === 'patronus') {
     ui.toast(touch ? '🦌 The Patronus Charm! Tap 🦌 when dementors close in!' : '🦌 The Patronus Charm! Press G when dementors close in!');
+  } else if (recipe.id === 'starblade') {
+    player.setStarblade(true);
+    ui.toast('⭐ The STAR BLADE! Your wand blazes silver — harder hits, longer reach!');
   } else {
     ui.toast('🗝️ Somewhere on the island, old stones begin to glow…');
   }
   particles.burst(player.pos.x, player.pos.y + 1.2, player.pos.z, 0xf0a6e8, 16);
   checkLevelOne();
+  checkAchievements();
 }
 
 // ---------- flying ----------
@@ -615,6 +644,8 @@ function askReply(speaker: Speaker, color: string, x: number, y: number, z: numb
           levelName: LEVELS[state.level ?? 1]?.name ?? 'the adventure',
         };
         const answer = QUESTIONS[i].answer(speaker, ctx);
+        bumpStat('questionsAsked');
+        checkAchievements();
         const hearts = bondWith(speaker.name, x, y, z);
         ui.showDialogue(speaker.name, color, answer, hearts, [
           askReply(speaker, color, x, y, z),
@@ -750,6 +781,8 @@ function talk(): void {
             onPick: () => {
               state.resources[t.takesBlock] = (state.resources[t.takesBlock] ?? 0) - t.takesCount;
               state.foods![t.gives]++;
+              bumpStat('trades');
+              checkAchievements();
               ui.showDialogue(def.name, def.nameColor, t.thanks, state.friendship[def.name] ?? 0, [bye]);
               particles.burst(npc.pos.x, npc.pos.y + 1.6, npc.pos.z, 0xffe27a, 10);
               ui.setItems(state);
@@ -889,6 +922,8 @@ function wakeUp(): void {
   state.health = MAX_HEALTH;
   ui.setHearts(state.health);
   ui.toast('Good morning! ☀️ All hearts restored.');
+  bumpStat('sleeps');
+  checkAchievements();
   markDirty();
 }
 document.getElementById('wake-btn')!.addEventListener('click', wakeUp);
@@ -970,6 +1005,71 @@ function checkWillowWhomp(dt: number): void {
   }
 }
 
+// ---------- stats, achievements, and daily gifts ----------
+
+function bumpStat(key: string, n = 1): void {
+  state.stats![key] = (state.stats![key] ?? 0) + n;
+}
+
+let achievementToastQueue = 0;
+function checkAchievements(): void {
+  for (const a of ACHIEVEMENTS) {
+    if (state.achievements!.includes(a.id)) continue;
+    if (!a.check(state, state.stats!)) continue;
+    state.achievements!.push(a.id);
+    const delay = achievementToastQueue++ * 2200;
+    window.setTimeout(() => {
+      ui.toast(`🏆 Trophy earned: ${a.emoji} ${a.name}!`);
+      particles.burst(player.pos.x, player.pos.y + 2.5, player.pos.z, 0xffd24a, 18);
+      achievementToastQueue = Math.max(0, achievementToastQueue - 1);
+    }, delay);
+    markDirty();
+  }
+}
+
+function collectBlock(id: number): void {
+  if (!state.collected!.includes(id)) {
+    state.collected!.push(id);
+    const total = state.collected!.length;
+    if (total % 5 === 0) ui.toast(`📦 Compendium: ${total} block types collected!`);
+  }
+}
+
+/** The Daily Owl: one small gift per real day, with a streak. */
+function dailyOwl(): void {
+  const today = new Date().toDateString();
+  if (state.lastGiftDay === today) return;
+  const yesterday = new Date(Date.now() - 86400000).toDateString();
+  state.giftStreak = state.lastGiftDay === yesterday ? (state.giftStreak ?? 0) + 1 : 1;
+  state.lastGiftDay = today;
+  const gifts: Array<[number, number]> = [[CRYSTAL, 2], [TIMBER, 2], [LANTERN, 1], [CARROT, 3], [BLOSSOM, 2]];
+  const [block, count] = gifts[Math.floor(Math.random() * gifts.length)];
+  state.resources[block] = (state.resources[block] ?? 0) + count;
+  if ((state.giftStreak ?? 0) % 3 === 0) state.foods!.juice++;
+  window.setTimeout(() => {
+    ui.toast(`🦉 The Daily Owl! Day ${state.giftStreak} streak — ${count}× ${BLOCKS[block].name} in your pouch!`);
+    ui.refreshCounts(state);
+    checkAchievements();
+  }, 4000);
+  markDirty();
+}
+
+// Pip sniffs out little treasures while he follows you
+let pipFindTimer = 150 + Math.random() * 120;
+function pipFinds(dt: number): void {
+  if (state.pipKidnapped || (state.elfMode ?? 'follow') !== 'follow' || state.where !== 'island') return;
+  pipFindTimer -= dt;
+  if (pipFindTimer > 0) return;
+  pipFindTimer = 150 + Math.random() * 150;
+  const finds: Array<[number, number]> = [[CRYSTAL, 1], [TIMBER, 1], [BLOSSOM, 1], [CARROT, 2]];
+  const [block, count] = finds[Math.floor(Math.random() * finds.length)];
+  state.resources[block] = (state.resources[block] ?? 0) + count;
+  particles.burst(elf.pos.x, elf.pos.y + 1, elf.pos.z, 0xffd24a, 8);
+  ui.toast(`🐾 Pip dug up ${count}× ${BLOCKS[block].name}! Good elf!`);
+  ui.refreshCounts(state);
+  markDirty();
+}
+
 // ---------- the campaign: enemies, levels, bosses ----------
 
 const enemies = new EnemyManager(scene);
@@ -998,9 +1098,13 @@ const enemyCtx = {
         ui.toast(`${def.emoji} ${KINDS[kind].label} freed! ${state.levelKills}/${def.goal}`);
       }
     }
-    // little victory loot
+    bumpStat('kills');
+    checkAchievements();
+    // little victory loot (shadow enemies drop shadow ore!)
     if (Math.random() < 0.3) {
-      state.resources[CRYSTAL] = (state.resources[CRYSTAL] ?? 0) + 1;
+      const lootId = state.shadowTouched ? VOIDCRYSTAL : CRYSTAL;
+      state.resources[lootId] = (state.resources[lootId] ?? 0) + 1;
+      collectBlock(lootId);
       ui.refreshCounts(state);
     }
     void pos;
@@ -1056,21 +1160,21 @@ function updateCampaign(dt: number): void {
             ui.toast('🐍 The ground trembles…');
           }
         } else {
-          enemies.spawn('voldemort', 32.5, 13, 44.5);
-          ui.toast('⚡ "So. The little builder has come."');
+          enemies.spawn('voldemort', 32.5, 13, 44.5, lvl >= 12);
+          ui.toast(lvl >= 12 ? '⚡ "You cannot defeat a SHADOW, little builder…"' : '⚡ "So. The little builder has come."');
         }
       }
     } else {
       const remaining = def.goal - (state.levelKills ?? 0);
       const want = Math.min(CONCURRENT[def.enemy] ?? 3, Math.max(1, remaining));
       const nightBoost = def.enemy === 'werewolf' && isNight() ? 1 : 0;
-      enemies.maintain(def.enemy, want + nightBoost, dt, enemyCtx, isSafeZone);
+      enemies.maintain(def.enemy, want + nightBoost, dt, enemyCtx, isSafeZone, lvl >= 12);
     }
   }
 
   // boss bar
   const boss = enemies.enemies.find((e) => !e.dead && (e.kind === 'basilisk' || e.kind === 'voldemort'));
-  ui.setBoss(boss ? boss.def.label : null, boss ? boss.hp / boss.def.hp : 1);
+  ui.setBoss(boss ? boss.label : null, boss ? boss.hp / boss.maxHp : 1);
 
   // dementors chill the air (and the screen) — but never finish you off
   let nearest = 99;
@@ -1120,7 +1224,7 @@ function autoAttack(): void {
     doBreak(); // no enemy nearby — behave like a normal whack
     return;
   }
-  const dmg = state.items.wand ? 2 : 1;
+  const dmg = whackDamage();
   best.hit(dmg, player.pos);
   particles.burst(best.pos.x, best.pos.y + 1, best.pos.z, 0xffffff, 6);
 }
@@ -1216,7 +1320,40 @@ function levelComplete(): void {
     victory();
     return;
   }
+  if (lvl === 15) {
+    victory2();
+    return;
+  }
   levelUp(lvl + 1);
+}
+
+function victory2(): void {
+  state.level = 16;
+  state.levelKills = 0;
+  // a rainbow beacon rises beside the golden statue
+  const bx = Math.floor(spawn.x) - 3, bz = Math.floor(spawn.z) + 3;
+  const by = island.surfaceY(bx, bz);
+  for (let i = 1; i <= 7; i++) island.set(bx, by + i, bz, 26);
+  island.set(bx, by + 8, bz, MOONSILVER);
+  if (state.where === 'island') voxels.blockChanged(bx, bz);
+  islandEncDirty = true;
+  for (let i = 0; i < 10; i++) {
+    window.setTimeout(() => {
+      particles.burst(
+        player.pos.x + (Math.random() - 0.5) * 16,
+        player.pos.y + 4 + Math.random() * 8,
+        player.pos.z + (Math.random() - 0.5) * 16,
+        [0xe06a6a, 0xf0a04a, 0xf7d44a, 0x6ec46e, 0x5fa8e0, 0xa87ad6][i % 6], 24,
+      );
+    }, i * 300);
+  }
+  ui.toast(LEVELS[16].intro);
+  window.setTimeout(() => ui.toast('🌈 A rainbow beacon now shines over your village. Forever.'), 3400);
+  window.setTimeout(() => ui.toast('Thank you for saving the realm TWICE. Keep building, hero of heroes! 💛'), 6800);
+  ui.setBoss(null);
+  checkAchievements();
+  updateGoal();
+  saveNow();
 }
 
 function victory(): void {
@@ -1244,6 +1381,7 @@ function victory(): void {
   ui.toast(LEVELS[11].intro);
   window.setTimeout(() => ui.toast('🏆 A golden statue of YOU now stands in the village!'), 3200);
   window.setTimeout(() => ui.toast('Thank you for saving the realm, hero. Keep building! 💛'), 6400);
+  window.setTimeout(() => ui.toast('…but a dark whisper lingers. Something new waits in your 🎒 bag.'), 9800);
   ui.setBoss(null);
   updateGoal();
   saveNow();
@@ -1283,7 +1421,7 @@ function updateDuel(dt: number): void {
     const won = duel.mine >= 3;
     particles.burst(player.pos.x, player.pos.y + 2, player.pos.z, won ? 0xffd24a : 0xb9a8ee, 24);
     state.friendship[npc.def.name] = (state.friendship[npc.def.name] ?? 0) + 2;
-    if (won) state.foods!.juice++;
+    if (won) { state.foods!.juice++; bumpStat('duelsWon'); checkAchievements(); }
     ui.setItems(state);
     ui.toast(won ? `🏆 You win the duel! ${npc.def.name} hands you a juice. GG!` : `😄 ${npc.def.name} wins! "Best of luck next time!"`);
     duel = null;
@@ -1439,6 +1577,41 @@ controls.onEat = eatBest;
 controls.onPatronus = patronus;
 ui.onEat = eat;
 ui.onPatronusChip = patronus;
+
+// ---------- Shadow-Touched mode: the world remixed after victory ----------
+
+function shadowOrePass(w: World): void {
+  if (w.data.includes(VOIDCRYSTAL)) return;
+  for (let i = 0; i < w.data.length; i++) {
+    if (w.data[i] !== 3) continue; // only old stone
+    const r = Math.random();
+    if (r < 0.02) w.data[i] = VOIDCRYSTAL;
+    else if (r < 0.026) w.data[i] = MOONSILVER;
+  }
+}
+
+function beginShadowTouched(): void {
+  if (state.shadowTouched) return;
+  state.shadowTouched = true;
+  shadowOrePass(island);
+  if (castle) shadowOrePass(castle);
+  islandEncDirty = true;
+  voxels.setWorld(world, player.pos.x, player.pos.z); // remesh with the new ores
+  ui.setShadowButton(false);
+  ui.toggleCraft(false);
+  levelUp(12);
+  window.setTimeout(() => ui.toast('💎 Void Crystal and Moon Silver now hide in old stone. Re-mine EVERYTHING!'), 3000);
+  checkAchievements();
+  saveNow();
+}
+
+function refreshBagExtras(): void {
+  ui.setShadowButton((state.level ?? 1) >= 11 && !state.shadowTouched);
+  ui.setWorldCode(seed.toString(36).toUpperCase());
+}
+
+ui.onShadowMode = beginShadowTouched;
+
 ui.onPeaceful = (on) => {
   state.peaceful = on;
   if (on) {
@@ -1458,6 +1631,10 @@ if (levelToastPending) {
   const msg = levelToastPending;
   window.setTimeout(() => ui.toast(msg), 1500);
 }
+player.setStarblade(state.items.starblade);
+refreshBagExtras();
+dailyOwl();
+checkAchievements();
 
 ui.onSelect = (i) => ui.select(i);
 ui.onStart = () => { if (!touch) controls.lock(); };
@@ -1467,11 +1644,15 @@ ui.onCraftToggle = (open) => {
   if (open) {
     controls.unlock();
     ui.renderCraft(state);
+    refreshBagExtras();
   }
 };
 ui.onReset = () => {
   clearSave();
-  seed = (Math.random() * 2 ** 31) | 0;
+  // shareable seed codes: type a friend's code to grow THEIR island
+  const code = window.prompt('🌱 Type a world code to grow a friend\'s island — or leave blank for a surprise:', '');
+  const parsed = code && /^[0-9a-z]+$/i.test(code.trim()) ? parseInt(code.trim().toLowerCase(), 36) | 0 : NaN;
+  seed = Number.isFinite(parsed) && parsed !== 0 ? parsed : (Math.random() * 2 ** 31) | 0;
   const keepPeaceful = state.peaceful ?? false; // a worried parent's setting survives
   Object.assign(state, defaultState());
   state.peaceful = keepPeaceful;
@@ -1510,6 +1691,7 @@ ui.onReset = () => {
   ui.setFlyButtonVisible(false);
   ui.setDownVisible(false);
   ui.refreshCounts(state);
+  refreshBagExtras();
   updateGoal();
   saveNow();
   ui.toast('🌱 A brand new island grew!');
@@ -1613,6 +1795,7 @@ function frame(): void {
   checkWillowWhomp(dt);
   updateCampaign(dt);
   updateDuel(dt);
+  pipFinds(dt);
   if (touch) {
     ui.setPatronusVisible(state.items.patronus && (state.level ?? 1) >= 8);
     ui.setFightVisible(!state.peaceful && nearestEnemyDist() < 12);

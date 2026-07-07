@@ -1,6 +1,7 @@
 import { BLOCKS, PLACEABLE, CARROT } from './blocks';
 import { Atlas } from './textures';
 import { GameState, RECIPES, Recipe, canCraft, MAX_HEALTH } from './state';
+import { ACHIEVEMENTS } from './achievements';
 
 /** Hotbar, quest banner, item chips, crafting panel, dialogue, toasts. */
 export class UI {
@@ -15,6 +16,7 @@ export class UI {
   onEat?: (kind: 'carrot' | 'juice' | 'brew') => void;
   onPeaceful?: (on: boolean) => void;
   onPatronusChip?: () => void;
+  onShadowMode?: () => void;
 
   private slots: HTMLButtonElement[] = [];
   private slotCounts: HTMLSpanElement[] = [];
@@ -61,6 +63,12 @@ export class UI {
     document.getElementById('sel-chip')!.addEventListener('click', () => this.toggleInventory(true));
     document.getElementById('inv-close')!.addEventListener('click', () => this.toggleInventory(false));
     document.getElementById('q-close')!.addEventListener('click', () => this.hideQuestions());
+    document.getElementById('trophies')!.addEventListener('click', () => this.toggleAwards());
+    document.getElementById('awards-close')!.addEventListener('click', () => this.toggleAwards(false));
+    document.getElementById('awards')!.addEventListener('click', (e) => {
+      if ((e.target as HTMLElement).id === 'awards') this.toggleAwards(false);
+    });
+    document.getElementById('shadow-row')!.addEventListener('click', () => this.onShadowMode?.());
     document.getElementById('questions')!.addEventListener('click', (e) => {
       if ((e.target as HTMLElement).id === 'questions') this.hideQuestions();
     });
@@ -165,6 +173,44 @@ export class UI {
     chip.append(img, name, cnt);
   }
 
+  toggleAwards(open?: boolean): void {
+    const panel = document.getElementById('awards')!;
+    const next = open ?? panel.hidden;
+    panel.hidden = !next;
+    if (next && this.lastState) this.renderAwards(this.lastState);
+  }
+
+  renderAwards(state: GameState): void {
+    const earned = new Set(state.achievements ?? []);
+    document.getElementById('awards-count')!.textContent = `${earned.size} of ${ACHIEVEMENTS.length} earned`;
+    const list = document.getElementById('awards-list')!;
+    list.innerHTML = '';
+    const sorted = [...ACHIEVEMENTS].sort((a, b) => Number(earned.has(b.id)) - Number(earned.has(a.id)));
+    for (const a of sorted) {
+      const row = document.createElement('div');
+      row.className = 'award' + (earned.has(a.id) ? '' : ' locked');
+      const emoji = document.createElement('span');
+      emoji.className = 'a-emoji';
+      emoji.textContent = a.emoji;
+      const text = document.createElement('div');
+      const title = document.createElement('b');
+      title.textContent = a.name;
+      const desc = document.createElement('small');
+      desc.textContent = a.desc;
+      text.append(title, desc);
+      row.append(emoji, text);
+      list.appendChild(row);
+    }
+  }
+
+  setShadowButton(visible: boolean): void {
+    document.getElementById('shadow-row')!.hidden = !visible;
+  }
+
+  setWorldCode(code: string): void {
+    document.getElementById('world-code')!.textContent = `🌱 World code: ${code} — share it with a friend!`;
+  }
+
   /** The big list of questions you can ask a friend. */
   showQuestions(questions: string[], onPick: (index: number) => void): void {
     const panel = document.getElementById('questions')!;
@@ -194,6 +240,9 @@ export class UI {
   }
 
   renderInventory(state: GameState): void {
+    const discovered = state.collected?.length ?? 0;
+    document.querySelector('.inv-sub')!.textContent =
+      `Collected ${discovered} of ${PLACEABLE.length} block types. Gray ones still need mining!`;
     const grid = document.getElementById('inv-grid')!;
     grid.innerHTML = '';
     PLACEABLE.forEach((id, i) => {
